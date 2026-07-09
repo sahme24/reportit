@@ -22,8 +22,11 @@ and fully auditable.
   color-coded by risk
 - **Case files, not pass/fail** — every scan gets a case number, a 0–100 risk
   score, findings in plain language, and an exportable markdown/JSON report
-- **Accounts & case history** — your investigations are saved; repeat
-  offenders (same sender/domain across cases) are flagged automatically
+- **AI analyst (powered by Claude)** — one click turns the findings into a
+  plain-English explanation and "what to do next" steps
+- **Google-only sign-in** — no passwords stored, ever; your case history is
+  saved to your account and repeat offenders (same sender/domain across
+  cases) are flagged automatically
 - **Admin dashboard** — user growth, scans per day, verdict breakdown
 - **Light & dark themes** — clean SaaS light or deep-navy dark
 - **CLI included** — everything works from the terminal too
@@ -34,13 +37,14 @@ and fully auditable.
 git clone https://github.com/YOURUSERNAME/reportit
 cd reportit
 pip install -r requirements.txt
+cp .env.example .env   # then add your Google OAuth credentials (below)
 
 # web app
 uvicorn app:app
 # → open http://127.0.0.1:8000
-# the FIRST account you create becomes the admin (that's you — sign up first!)
+# the FIRST account that signs in becomes the admin (that's you — sign in first!)
 
-# or straight from the terminal
+# or straight from the terminal (no account needed)
 python -m threadline samples/phish-0ffice365.eml
 python -m threadline suspicious.eml --report case.md
 python -m threadline suspicious.eml --json
@@ -50,6 +54,38 @@ python -m threadline samples/smish-cra.txt --sms --sender "+1 555 013 4477"
 ```
 
 `--offline` skips all network lookups; header and URL heuristics still run.
+
+## Google sign-in (required for the web app)
+
+Sign-in is Google-only by design — no passwords are ever stored. Setup takes
+two minutes:
+
+1. Go to [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+   → **Create credentials → OAuth client ID → Web application**
+2. Add an **authorized redirect URI**:
+   `http://127.0.0.1:8000/auth/google/callback` (add your public URL too when
+   you deploy, and set `OAUTH_REDIRECT_URL` in `.env` if you're behind a proxy)
+3. Put the client ID and secret in `.env`:
+
+```
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+```
+
+Accounts created before the Google-only switch are linked automatically by
+email address (they keep their history and admin flag).
+
+## AI analyst (optional)
+
+With an [Anthropic API key](https://platform.claude.com) in `.env`, every
+scan gets an **"Explain this case"** button — Claude turns the findings into
+a plain-English explanation plus what-to-do-next steps. The analyst only
+sees the scan results (links defanged); it never visits anything.
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+# REPORTIT_AI_MODEL=claude-opus-4-8   # default
+```
 
 ## What gets checked
 
@@ -83,9 +119,12 @@ checks. Lookups fail soft — a dead API never breaks a scan.
 - **Runs on your machine** — Python + SQLite, no cloud dependency
 - **Defanged by design** — reports neutralize URLs (`hxxps://…[.]com`);
   links found in a message are never visited
+- **No passwords, ever** — sign-in is Google OAuth only; the database stores
+  just your name, email, and case metadata (message bodies are analyzed and
+  discarded)
 - **Your data stays put** — accounts and scan history live in a local
   `threadline.db`; the only outbound traffic is the reputation lookups you
-  enable
+  enable and the optional AI analyst
 
 ## Project layout
 

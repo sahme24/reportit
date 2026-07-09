@@ -72,10 +72,11 @@ const ReportIT = {
       links = `
         ${link("/#how", "How it works")}
         ${link("/#why", "Why ReportIT")}
-        ${link("/#trust", "Open Source")}`;
+        ${link("/#trust", "Open Source")}
+        ${link("/#faq", "FAQ")}`;
       right = `
         <a href="/login" class="btn outline pill">Login</a>
-        <a href="/login?mode=signup" class="btn primary pill">Start Free</a>`;
+        <a href="/login" class="btn primary pill">Start Free</a>`;
     }
 
     document.getElementById("topbar").innerHTML = `

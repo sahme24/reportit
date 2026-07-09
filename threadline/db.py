@@ -1,13 +1,12 @@
 """SQLite storage: users, sessions, and scan history.
 
 Single-file database (threadline.db by default, THREADLINE_DB to override).
-Passwords are salted PBKDF2-SHA256 — no plaintext, no external auth deps.
+Sign-in is Google-only: no passwords are stored, just the verified Google
+identity (email, name, subject id) and a session token.
 """
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import os
 import secrets
 import sqlite3
@@ -15,7 +14,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 _DB_PATH = Path(os.environ.get("THREADLINE_DB", "threadline.db"))
-_PBKDF2_ROUNDS = 200_000
 SESSION_DAYS = 30
 
 _SCHEMA = """
@@ -69,53 +67,48 @@ def init_db() -> None:
                          " DEFAULT 'email'")
         except sqlite3.OperationalError:
             pass  # column already exists
+        # migration for databases created before Google-only sign-in
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN google_sub TEXT")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _hash_password(password: str, salt: str) -> str:
-    return hashlib.pbkdf2_hmac(
-        "sha256", password.encode(), bytes.fromhex(salt), _PBKDF2_ROUNDS
-    ).hex()
-
-
 # --------------------------------------------------------------------------
 # Users & sessions
 # --------------------------------------------------------------------------
 
-def create_user(email: str, name: str, password: str) -> tuple[dict | None, str]:
+def upsert_google_user(email: str, name: str, google_sub: str) -> dict:
+    """Create or link an account from a verified Google identity.
+
+    Accounts that existed before the Google-only switch are linked by email,
+    so they keep their scan history and admin flag. The first account ever
+    created on the instance becomes the admin.
+    """
     email = email.strip().lower()
-    if "@" not in email or "." not in email.split("@")[-1]:
-        return None, "That doesn't look like an email address."
-    if len(password) < 8:
-        return None, "Password must be at least 8 characters."
-    salt = secrets.token_hex(16)
-    with _connect() as conn:
-        first_user = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"] == 0
-        try:
-            cur = conn.execute(
-                "INSERT INTO users (email, name, pw_hash, salt, is_admin, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
-                (email, name.strip() or email.split("@")[0],
-                 _hash_password(password, salt), salt, int(first_user), _now()))
-        except sqlite3.IntegrityError:
-            return None, "An account with that email already exists."
-        user_id = cur.lastrowid
-    # look up outside the with-block so the insert is committed first
-    return get_user(user_id), ""
-
-
-def verify_user(email: str, password: str) -> dict | None:
     with _connect() as conn:
         row = conn.execute("SELECT * FROM users WHERE email = ?",
-                           (email.strip().lower(),)).fetchone()
-    if not row:
-        return None
-    if hmac.compare_digest(_hash_password(password, row["salt"]), row["pw_hash"]):
-        return _public_user(row)
-    return None
+                           (email,)).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE users SET google_sub = ?, name = ? WHERE id = ?",
+                (google_sub, name.strip() or row["name"], row["id"]))
+            user_id = row["id"]
+        else:
+            first_user = conn.execute(
+                "SELECT COUNT(*) c FROM users").fetchone()["c"] == 0
+            cur = conn.execute(
+                "INSERT INTO users (email, name, pw_hash, salt, is_admin,"
+                " google_sub, created_at) VALUES (?, ?, '', '', ?, ?, ?)",
+                (email, name.strip() or email.split("@")[0],
+                 int(first_user), google_sub, _now()))
+            user_id = cur.lastrowid
+    # look up outside the with-block so the write is committed first
+    return get_user(user_id)
 
 
 def get_user(user_id: int) -> dict | None:

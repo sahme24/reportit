@@ -1,27 +1,39 @@
-"""Threadline web app — landing, auth, scanner, history, and admin dashboard.
+"""ReportIT.ai web app — landing, Google sign-in, scanner, history, dashboard.
 
 Run:  uvicorn app:app --reload
 Then open http://127.0.0.1:8000
 
-The first account created on a fresh database becomes the admin.
+Sign-in is Google-only. Create OAuth credentials at
+https://console.cloud.google.com/apis/credentials (Web application; add
+<your-url>/auth/google/callback as an authorized redirect URI) and put
+GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.
+The first account that signs in on a fresh database becomes the admin.
 """
 
 from __future__ import annotations
 
+import os
+import secrets
 from pathlib import Path
+from urllib.parse import urlencode
 
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Response
-from fastapi.responses import FileResponse, PlainTextResponse
+import anthropic
+import requests as http
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from threadline import db
+from threadline import ai, db
 from threadline.models import WARN, Finding
 from threadline.report import markdown_report
+from threadline.reputation import load_dotenv
 from threadline.scanner import scan
 from threadline.sms import scan_sms
 
-app = FastAPI(title="ReportIT.ai", version="0.3.0")
+load_dotenv()
+
+app = FastAPI(title="ReportIT.ai", version="0.4.0")
 STATIC = Path(__file__).parent / "static"
 SAMPLES = Path(__file__).parent / "samples"
 
@@ -29,6 +41,22 @@ db.init_db()
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 _COOKIE = "threadline_session"
+_STATE_COOKIE = "reportit_oauth_state"
+
+_GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
+
+
+def _google_configured() -> bool:
+    return bool(os.environ.get("GOOGLE_CLIENT_ID")
+                and os.environ.get("GOOGLE_CLIENT_SECRET"))
+
+
+def _redirect_uri(request: Request) -> str:
+    # OAUTH_REDIRECT_URL wins (needed behind a reverse proxy / custom domain).
+    return os.environ.get("OAUTH_REDIRECT_URL") or \
+        str(request.base_url).rstrip("/") + "/auth/google/callback"
 
 
 # --------------------------------------------------------------------------
@@ -51,38 +79,60 @@ def require_admin(user: dict = Depends(require_user)) -> dict:
     return user
 
 
-def _start_session(response: Response, user: dict) -> dict:
-    token = db.create_session(user["id"])
-    response.set_cookie(_COOKIE, token, max_age=db.SESSION_DAYS * 86400,
+@app.get("/auth/google")
+def auth_google(request: Request) -> RedirectResponse:
+    """Kick off the Google OAuth 2.0 authorization-code flow."""
+    if not _google_configured():
+        return RedirectResponse("/login?error=not_configured")
+    state = secrets.token_urlsafe(24)
+    params = urlencode({
+        "client_id": os.environ["GOOGLE_CLIENT_ID"],
+        "redirect_uri": _redirect_uri(request),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "prompt": "select_account",
+    })
+    response = RedirectResponse(f"{_GOOGLE_AUTH_URL}?{params}")
+    response.set_cookie(_STATE_COOKIE, state, max_age=600,
                         httponly=True, samesite="lax")
-    return {"user": user}
+    return response
 
 
-class SignupRequest(BaseModel):
-    name: str = ""
-    email: str
-    password: str
+@app.get("/auth/google/callback")
+def auth_google_callback(request: Request, code: str = "", state: str = "",
+                         reportit_oauth_state: str = Cookie(default="")
+                         ) -> RedirectResponse:
+    if not code or not state or state != reportit_oauth_state:
+        return RedirectResponse("/login?error=state")
+    try:
+        token = http.post(_GOOGLE_TOKEN_URL, data={
+            "code": code,
+            "client_id": os.environ["GOOGLE_CLIENT_ID"],
+            "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],
+            "redirect_uri": _redirect_uri(request),
+            "grant_type": "authorization_code",
+        }, timeout=10).json()
+        # Google validates the id_token's signature server-side for us.
+        info = http.get(_GOOGLE_TOKENINFO_URL,
+                        params={"id_token": token["id_token"]},
+                        timeout=10).json()
+    except Exception:
+        return RedirectResponse("/login?error=google")
 
+    if info.get("aud") != os.environ["GOOGLE_CLIENT_ID"] \
+            or info.get("email_verified") not in ("true", True) \
+            or not info.get("email"):
+        return RedirectResponse("/login?error=verify")
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-@app.post("/api/signup")
-def api_signup(req: SignupRequest, response: Response) -> dict:
-    user, error = db.create_user(req.email, req.name, req.password)
-    if error:
-        raise HTTPException(status_code=400, detail=error)
-    return _start_session(response, user)
-
-
-@app.post("/api/login")
-def api_login(req: LoginRequest, response: Response) -> dict:
-    user = db.verify_user(req.email, req.password)
-    if not user:
-        raise HTTPException(status_code=401, detail="Wrong email or password.")
-    return _start_session(response, user)
+    user = db.upsert_google_user(info["email"], info.get("name", ""),
+                                 info.get("sub", ""))
+    response = RedirectResponse("/scan")
+    response.set_cookie(_COOKIE, db.create_session(user["id"]),
+                        max_age=db.SESSION_DAYS * 86400,
+                        httponly=True, samesite="lax")
+    response.delete_cookie(_STATE_COOKIE)
+    return response
 
 
 @app.post("/api/logout")
@@ -165,6 +215,38 @@ def api_sample(name: str) -> PlainTextResponse:
 # --------------------------------------------------------------------------
 # Stats
 # --------------------------------------------------------------------------
+
+@app.get("/api/config")
+def api_config() -> dict:
+    """What optional integrations are configured on this instance."""
+    return {"google": _google_configured(), "ai": ai.is_configured()}
+
+
+class ExplainRequest(BaseModel):
+    case: dict
+
+
+@app.post("/api/explain")
+def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict:
+    if not ai.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="The AI analyst isn't configured on this server — add an "
+                   "ANTHROPIC_API_KEY to .env to enable it.")
+    try:
+        return {"summary": ai.explain_case(req.case)}
+    except anthropic.RateLimitError:
+        raise HTTPException(status_code=429,
+                            detail="The AI analyst is busy — try again in a "
+                                   "minute.")
+    except anthropic.APIStatusError as e:
+        raise HTTPException(status_code=502,
+                            detail=f"AI analyst error ({e.status_code}).")
+    except anthropic.APIConnectionError:
+        raise HTTPException(status_code=502,
+                            detail="Couldn't reach the AI analyst — check the "
+                                   "server's network connection.")
+
 
 @app.get("/api/stats")
 def api_stats() -> dict:
