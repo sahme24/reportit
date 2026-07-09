@@ -28,8 +28,8 @@
     <div class="table-scroll">
       <table class="data" id="table">
         <thead><tr>
-          <th>Case</th><th>Verdict</th><th>Risk</th><th>From</th>
-          <th>Subject</th><th>Opened</th>
+          <th>Case</th><th>Type</th><th>Verdict</th><th>Risk</th><th>From</th>
+          <th>Message</th><th>Opened</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -58,6 +58,7 @@ ReportIT.topbar("/history").then(async user => {
   document.getElementById("rows").innerHTML = scans.map(s => `
     <tr>
       <td class="mono">#${esc(s.case_id)}</td>
+      <td>${s.kind === "sms" ? "💬 SMS" : "📧 Email"}</td>
       <td><span class="chip ${chip(s.verdict)}">${esc(s.verdict)}</span></td>
       <td class="mono">${s.score}/100</td>
       <td class="mono">${esc(s.from_addr || "—")}</td>

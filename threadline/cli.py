@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .report import markdown_report
 from .scanner import scan
+from .sms import scan_sms
 
 _COLORS = {"bad": "\033[91m", "warn": "\033[93m", "ok": "\033[92m",
            "info": "\033[90m", "reset": "\033[0m", "bold": "\033[1m"}
@@ -25,6 +26,10 @@ def main(argv: list[str] | None = None) -> int:
         prog="threadline",
         description="Automated phishing investigation — parse, analyze, report.")
     ap.add_argument("email", help="path to a raw email (.eml/.txt), or '-' for stdin")
+    ap.add_argument("--sms", action="store_true",
+                    help="treat the input as an SMS/text message instead of an email")
+    ap.add_argument("--sender", default="",
+                    help="SMS sender number or address (with --sms)")
     ap.add_argument("--offline", action="store_true",
                     help="skip all network reputation lookups")
     ap.add_argument("--json", action="store_true", dest="as_json",
@@ -47,7 +52,11 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         raw = path.read_bytes()
 
-    case = scan(raw, offline=args.offline)
+    if args.sms:
+        case = scan_sms(raw.decode("utf-8", errors="replace"),
+                        sender=args.sender, offline=args.offline)
+    else:
+        case = scan(raw, offline=args.offline)
 
     if args.as_json:
         print(json.dumps(case.to_dict(), indent=2, ensure_ascii=False))
@@ -60,11 +69,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  {_c(sev_color, f'● {case.verdict} — {case.confidence} CONFIDENCE', color)}"
               f"  (score {case.score}/100)")
         print()
-        print(f"  From:      {case.headers['from']}")
-        print(f"  Subject:   {case.headers['subject']}")
-        print(f"  Sender IP: {case.auth['sender_ip'] or 'not identified'}")
-        print(f"  Auth:      SPF={case.auth['spf']}  DKIM={case.auth['dkim']}"
-              f"  DMARC={case.auth['dmarc']}")
+        if case.kind == "sms":
+            print(f"  Sender:    {case.headers['from']}")
+            print(f"  Text:      {case.body_preview[:100]}")
+        else:
+            print(f"  From:      {case.headers['from']}")
+            print(f"  Subject:   {case.headers['subject']}")
+            print(f"  Sender IP: {case.auth['sender_ip'] or 'not identified'}")
+            print(f"  Auth:      SPF={case.auth['spf']}  DKIM={case.auth['dkim']}"
+                  f"  DMARC={case.auth['dmarc']}")
         print()
         print(_c("bold", "  FINDINGS", color))
         for f in case.findings:

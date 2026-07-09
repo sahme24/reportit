@@ -114,9 +114,10 @@
   <h1>Ever gotten a <span class="accent">phishing email</span>?<br>Now you can fight back.</h1>
   <p class="lede">
     Everyone has — and most of us just delete it and hope. ReportIT.ai reads a
-    suspicious email the way a security analyst would: it verifies the sender,
-    checks every link against threat intelligence, traces the attack chain, and
-    gives you a plain-English verdict. Free, instant, and open source.
+    suspicious email <b>or text message</b> the way a security analyst would: it
+    verifies the sender, checks every link against threat intelligence, traces
+    the attack chain, and gives you a plain-English verdict. Free, instant, and
+    open source.
   </p>
 
   <div class="tabs-block">
@@ -263,10 +264,10 @@ const icon = d => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const TABS = [
   {
-    label: "Email Scanner",
+    label: "Email & SMS Scanner",
     icon: icon('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/>'),
-    line: "Scan your emails for threats — free and instant.",
-    desc: "Real-time email investigation that detects phishing, scams, and impersonation. It analyzes senders, authentication, URLs, and attachments for a verdict you can actually read.",
+    line: "Scan suspicious emails and texts — free and instant.",
+    desc: "Real-time investigation of phishing emails and smishing texts. It analyzes senders, authentication, brand lures, URLs, and attachments for a verdict you can actually read.",
   },
   {
     label: "Attack Chain",

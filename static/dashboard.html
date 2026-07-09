@@ -97,7 +97,7 @@
       <div class="panel-head"><span class="panel-title">Latest cases</span></div>
       <div class="table-scroll">
         <table class="data">
-          <thead><tr><th>Case</th><th>Verdict</th><th>From</th><th>User</th></tr></thead>
+          <thead><tr><th>Case</th><th>Type</th><th>Verdict</th><th>From</th><th>User</th></tr></thead>
           <tbody id="scanRows"></tbody>
         </table>
       </div>
@@ -217,6 +217,7 @@ ReportIT.topbar("/dashboard").then(async user => {
 
   document.getElementById("scanRows").innerHTML = s.recent_scans.map(sc => `
     <tr><td class="mono">#${esc(sc.case_id)}</td>
+        <td>${sc.kind === "sms" ? "💬" : "📧"}</td>
         <td><span class="chip ${chip(sc.verdict)}">${esc(sc.verdict)}</span></td>
         <td class="mono">${esc(sc.from_addr || "—")}</td>
         <td class="mono">${esc(sc.email || "—")}</td></tr>`).join("")

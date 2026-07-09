@@ -54,6 +54,15 @@
 
   .actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
   .hidden{display:none !important;}
+
+  .mode-tabs{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;}
+  .mtab{
+    padding:9px 20px;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
+    border:none;background:transparent;color:var(--dim);cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  .mtab.active{background:var(--primary);color:var(--primary-ink);}
+  .sender-row{margin-bottom:14px;max-width:340px;}
 </style>
 </head>
 <body>
@@ -62,7 +71,7 @@
 <div class="wrap page">
   <div class="casebar">
     <div>
-      <h2>Email Scanner</h2>
+      <h2 id="pageTitle">Threat Scanner</h2>
       <span class="case-id" id="caseId">NEW CASE</span>
     </div>
     <span class="stamp hidden" id="verdict"></span>
@@ -70,16 +79,25 @@
 
   <!-- intake -->
   <div id="intake" class="panel lift" style="margin-bottom:20px;">
-    <div class="panel-head"><span class="panel-title">Paste a suspicious email</span></div>
+    <div class="panel-head">
+      <span class="panel-title" id="intakeTitle">Paste a suspicious email</span>
+      <div class="mode-tabs">
+        <button class="mtab active" id="modeEmail" onclick="setKind('email')">📧 Email</button>
+        <button class="mtab" id="modeSms" onclick="setKind('sms')">💬 Text (SMS)</button>
+      </div>
+    </div>
     <div class="panel-body">
-      <textarea id="rawInput" spellcheck="false"
-        placeholder="Paste the raw email source here — full headers + body.
-Gmail: open the message → ⋮ → Show original → Copy to clipboard.
-Outlook: ⋯ → View → View message source."></textarea>
+      <div class="sender-row hidden" id="senderRow">
+        <label><span class="field-label">Sender number or address</span>
+          <input type="text" id="smsSender" placeholder="+1 (555) 013-4477, shortcode, or email">
+        </label>
+      </div>
+      <textarea id="rawInput" spellcheck="false"></textarea>
       <div class="intake-row">
         <span class="intake-hint">Analysis runs on this server; reputation lookups are optional.</span>
         <button class="btn ghost" id="loadPhish">Load phishing sample</button>
         <button class="btn ghost" id="loadClean">Load clean sample</button>
+        <button class="btn ghost hidden" id="loadSmish">Load smishing sample</button>
         <label style="font-size:13px;color:var(--faint);display:flex;gap:6px;align-items:center;">
           <input type="checkbox" id="offline" style="width:auto;"> offline
         </label>
@@ -121,8 +139,33 @@ Outlook: ⋯ → View → View message source."></textarea>
 <script src="/static/shared.js"></script>
 <script>
 let currentCase = null;
+let kind = "email";
 const $ = id => document.getElementById(id);
 const esc = ReportIT.esc;
+
+const PLACEHOLDERS = {
+  email: `Paste the raw email source here — full headers + body.
+Gmail: open the message → ⋮ → Show original → Copy to clipboard.
+Outlook: ⋯ → View → View message source.`,
+  sms: `Paste the text message here, exactly as you received it.
+Include the link if there is one — that's the most important evidence.`,
+};
+
+function setKind(k){
+  kind = k;
+  $("modeEmail").classList.toggle("active", k === "email");
+  $("modeSms").classList.toggle("active", k === "sms");
+  $("intakeTitle").textContent =
+    k === "sms" ? "Paste a suspicious text message" : "Paste a suspicious email";
+  $("rawInput").placeholder = PLACEHOLDERS[k];
+  $("rawInput").style.minHeight = k === "sms" ? "140px" : "300px";
+  $("senderRow").classList.toggle("hidden", k !== "sms");
+  $("loadPhish").classList.toggle("hidden", k === "sms");
+  $("loadClean").classList.toggle("hidden", k === "sms");
+  $("loadSmish").classList.toggle("hidden", k !== "sms");
+  $("analyze").textContent = k === "sms" ? "Scan Text →" : "Scan Email →";
+  $("error").textContent = "";
+}
 
 ReportIT.topbar("/scan").then(user => {
   if (!user) location.href = "/login?next=/scan";
@@ -130,11 +173,16 @@ ReportIT.topbar("/scan").then(user => {
 
 async function loadSample(name){
   const r = await fetch(`/api/sample/${name}`);
-  $("rawInput").value = await r.text();
+  $("rawInput").value = (await r.text()).trim();
   $("error").textContent = "";
 }
 $("loadPhish").onclick = () => loadSample("phish");
 $("loadClean").onclick = () => loadSample("clean");
+$("loadSmish").onclick = async () => {
+  await loadSample("smish");
+  $("smsSender").value = "+1 (873) 555-0193";
+};
+setKind("email");
 
 $("analyze").onclick = async () => {
   const raw = $("rawInput").value;
@@ -145,7 +193,8 @@ $("analyze").onclick = async () => {
     const r = await fetch("/api/scan", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({raw, offline: $("offline").checked}),
+      body: JSON.stringify({raw, offline: $("offline").checked,
+                            kind, sender: $("smsSender").value}),
     });
     if (r.status === 401) { location.href = "/login?next=/scan"; return; }
     const data = await r.json();
@@ -172,20 +221,28 @@ function render(c){
   $("scoreLabel").textContent = `RISK ${c.score}/100`;
 
   const authLine = (label, result) => {
-    const cls = result === "pass" ? "src-ok" : (result === "unknown" ? "" : "src-flag");
+    const cls = result === "pass" ? "src-ok" : (["unknown", "n/a"].includes(result) ? "" : "src-flag");
     return `<div class="src-line"><b>${label}:</b> <span class="${cls}">${esc(result)}</span></div>`;
   };
-  let src = `
-    <div class="src-line"><b>From:</b> ${esc(c.headers.from)}</div>
-    ${c.headers.reply_to ? `<div class="src-line"><b>Reply-To:</b> ${esc(c.headers.reply_to)}</div>` : ""}
-    <div class="src-line"><b>Subject:</b> ${esc(c.headers.subject)}</div>
-    <div class="src-block">
-      ${authLine("SPF", c.auth.spf)}
-      ${authLine("DKIM", c.auth.dkim)}
-      ${authLine("DMARC", c.auth.dmarc)}
-      ${c.auth.sender_ip ? `<div class="src-line"><b>Sender IP:</b> ${esc(c.auth.sender_ip)}</div>` : ""}
-    </div>
-    <div class="src-block"><div class="src-line">${esc(c.body_preview)}</div></div>`;
+  let src;
+  if (c.kind === "sms") {
+    src = `
+      <div class="src-line"><b>Channel:</b> Text message (SMS)</div>
+      <div class="src-line"><b>Sender:</b> ${esc(c.headers.from)}</div>
+      <div class="src-block"><div class="src-line">${esc(c.body_preview)}</div></div>`;
+  } else {
+    src = `
+      <div class="src-line"><b>From:</b> ${esc(c.headers.from)}</div>
+      ${c.headers.reply_to ? `<div class="src-line"><b>Reply-To:</b> ${esc(c.headers.reply_to)}</div>` : ""}
+      <div class="src-line"><b>Subject:</b> ${esc(c.headers.subject)}</div>
+      <div class="src-block">
+        ${authLine("SPF", c.auth.spf)}
+        ${authLine("DKIM", c.auth.dkim)}
+        ${authLine("DMARC", c.auth.dmarc)}
+        ${c.auth.sender_ip ? `<div class="src-line"><b>Sender IP:</b> ${esc(c.auth.sender_ip)}</div>` : ""}
+      </div>
+      <div class="src-block"><div class="src-line">${esc(c.body_preview)}</div></div>`;
+  }
   if (c.urls.length){
     src += `<div class="src-block">` + c.urls.map(u =>
       `<div class="src-line"><b>URL:</b> <span class="${u.flags.length ? "src-flag" : ""}">${esc(u.defanged)}</span></div>`

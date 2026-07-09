@@ -14,6 +14,8 @@ and fully auditable.
 
 ## Features
 
+- **Phishing AND smishing** — scan raw emails or paste a scam text message;
+  SMS mode checks brand lures, sender-number heuristics, and link forensics
 - **Analyst-grade checks** — 40+ heuristics across headers, URLs, attachments,
   and content, plus optional reputation lookups
 - **Attack chain visualization** — sender → auth check → link → landing page,
@@ -42,6 +44,9 @@ uvicorn app:app
 python -m threadline samples/phish-0ffice365.eml
 python -m threadline suspicious.eml --report case.md
 python -m threadline suspicious.eml --json
+
+# text messages (smishing)
+python -m threadline samples/smish-cra.txt --sms --sender "+1 555 013 4477"
 ```
 
 `--offline` skips all network lookups; header and URL heuristics still run.
@@ -57,6 +62,7 @@ python -m threadline suspicious.eml --json
 | Content | Urgency and pressure language |
 | Reputation | Domain age via RDAP (keyless), VirusTotal, AbuseIPDB, URLhaus |
 | History | Repeat senders/domains across this instance's previous cases |
+| SMS (smishing) | Brand-name lures pointing at unofficial domains, gateway/full-number senders, pressure language, all URL checks |
 
 ## Threat-intel keys (optional)
 
@@ -90,6 +96,7 @@ threadline/         the investigation engine
   urlscan.py        URL extraction + typosquat/heuristic analysis
   reputation.py     RDAP, VirusTotal, AbuseIPDB, URLhaus
   scanner.py        orchestration, scoring, attack-chain builder
+  sms.py            smishing (text-message) analysis
   report.py         markdown report generation
   db.py             SQLite: users, sessions, scan history
   cli.py            terminal interface

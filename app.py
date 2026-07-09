@@ -19,6 +19,7 @@ from threadline import db
 from threadline.models import WARN, Finding
 from threadline.report import markdown_report
 from threadline.scanner import scan
+from threadline.sms import scan_sms
 
 app = FastAPI(title="ReportIT.ai", version="0.3.0")
 STATIC = Path(__file__).parent / "static"
@@ -104,31 +105,43 @@ def api_me(user: dict | None = Depends(current_user)) -> dict:
 class ScanRequest(BaseModel):
     raw: str
     offline: bool = False
+    kind: str = "email"    # email | sms
+    sender: str = ""       # SMS sender number/address (sms only)
 
 
-def _history_enrichment(email, urls) -> list[Finding]:
+def _sightings_finding(sender: str, urls) -> list[Finding]:
     """Cross-reference this instance's scan history — roadmap v2 feature."""
     top_domain = next((u.domain for u in urls if u.domain), "")
-    seen = db.prior_sightings(email.from_addr, top_domain)
-    findings = []
-    if seen["sender"] or seen["domain"]:
-        what = []
-        if seen["sender"]:
-            what.append(f"sender {email.from_addr} in {seen['sender']} previous case(s)")
-        if seen["domain"]:
-            what.append(f"domain {top_domain} in {seen['domain']} previous case(s)")
-        findings.append(Finding(
-            WARN, "Repeat offender",
-            "Seen before on this instance: " + " and ".join(what) + ".",
-            weight=10, category="history"))
-    return findings
+    seen = db.prior_sightings(sender, top_domain)
+    if not (seen["sender"] or seen["domain"]):
+        return []
+    what = []
+    if seen["sender"]:
+        what.append(f"sender {sender} in {seen['sender']} previous case(s)")
+    if seen["domain"]:
+        what.append(f"domain {top_domain} in {seen['domain']} previous case(s)")
+    return [Finding(WARN, "Repeat offender",
+                    "Seen before on this instance: " + " and ".join(what) + ".",
+                    weight=10, category="history")]
+
+
+def _email_enrichment(email, urls) -> list[Finding]:
+    return _sightings_finding(email.from_addr, urls)
+
+
+def _sms_enrichment(sender: str, urls) -> list[Finding]:
+    return _sightings_finding(sender.strip().lower(), urls)
 
 
 @app.post("/api/scan")
 def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
     if not req.raw.strip():
-        raise HTTPException(status_code=400, detail="Paste a raw email first.")
-    case = scan(req.raw, offline=req.offline, enrich=_history_enrichment)
+        raise HTTPException(status_code=400, detail="Paste a message first.")
+    if req.kind == "sms":
+        case = scan_sms(req.raw, sender=req.sender, offline=req.offline,
+                        enrich=_sms_enrichment)
+    else:
+        case = scan(req.raw, offline=req.offline, enrich=_email_enrichment)
     result = case.to_dict()
     result["report_markdown"] = markdown_report(case)
     db.record_scan(user["id"], result)
@@ -142,7 +155,8 @@ def api_history(user: dict = Depends(require_user)) -> dict:
 
 @app.get("/api/sample/{name}")
 def api_sample(name: str) -> PlainTextResponse:
-    safe = {"phish": "phish-0ffice365.eml", "clean": "clean-notification.eml"}
+    safe = {"phish": "phish-0ffice365.eml", "clean": "clean-notification.eml",
+            "smish": "smish-cra.txt"}
     if name not in safe:
         raise HTTPException(status_code=404, detail="unknown sample")
     return PlainTextResponse((SAMPLES / safe[name]).read_text(encoding="utf-8"))

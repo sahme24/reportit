@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS scans (
     subject TEXT,
     top_domain TEXT,
     bad_findings INTEGER NOT NULL DEFAULT 0,
+    kind TEXT NOT NULL DEFAULT 'email',
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scans_user ON scans(user_id, created_at);
@@ -62,6 +63,12 @@ def _connect() -> sqlite3.Connection:
 def init_db() -> None:
     with _connect() as conn:
         conn.executescript(_SCHEMA)
+        # migration for databases created before SMS support
+        try:
+            conn.execute("ALTER TABLE scans ADD COLUMN kind TEXT NOT NULL"
+                         " DEFAULT 'email'")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
 
 def _now() -> str:
@@ -156,11 +163,12 @@ def record_scan(user_id: int | None, case: dict) -> None:
     with _connect() as conn:
         conn.execute(
             "INSERT INTO scans (user_id, case_id, verdict, confidence, score,"
-            " from_addr, subject, top_domain, bad_findings, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            " from_addr, subject, top_domain, bad_findings, kind, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (user_id, case["case_id"], case["verdict"], case["confidence"],
              case["score"], case["headers"]["from_addr"],
-             case["headers"]["subject"][:200], top_domain, bad, _now()))
+             case["headers"]["subject"][:200], top_domain, bad,
+             case.get("kind", "email"), _now()))
 
 
 def prior_sightings(from_addr: str, domain: str) -> dict:
@@ -179,7 +187,7 @@ def user_scans(user_id: int, limit: int = 50) -> list[dict]:
     with _connect() as conn:
         rows = conn.execute(
             "SELECT case_id, verdict, confidence, score, from_addr, subject,"
-            " top_domain, created_at FROM scans WHERE user_id = ?"
+            " top_domain, kind, created_at FROM scans WHERE user_id = ?"
             " ORDER BY id DESC LIMIT ?", (user_id, limit)).fetchall()
     return [dict(r) for r in rows]
 
@@ -215,8 +223,9 @@ def admin_stats() -> dict:
             " (SELECT COUNT(*) FROM scans s WHERE s.user_id = u.id) scan_count"
             " FROM users u ORDER BY u.id DESC LIMIT 20")]
         recent_scans = [dict(r) for r in conn.execute(
-            "SELECT s.case_id, s.verdict, s.score, s.from_addr, s.created_at,"
-            " u.email FROM scans s LEFT JOIN users u ON u.id = s.user_id"
+            "SELECT s.case_id, s.verdict, s.score, s.from_addr, s.kind,"
+            " s.created_at, u.email"
+            " FROM scans s LEFT JOIN users u ON u.id = s.user_id"
             " ORDER BY s.id DESC LIMIT 20")]
     return {**public_stats(), "verdicts": verdicts, "scans_by_day": days,
             "signups_by_day": signups, "recent_users": recent_users,
