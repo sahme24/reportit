@@ -1,14 +1,15 @@
-# 🧵 Threadline
+# 🛡️ ReportIT.ai
 
 **Open-source phishing investigation for everyone.**
 
-Every phishing email tells a story. Threadline reads it — automating the manual
-investigation a security analyst does by hand: parsing headers, verifying
-authentication, hunting typosquats, querying threat intel, and tracing the
-attack chain from spoofed sender to landing page.
+Ever gotten a phishing email? Everyone has. ReportIT.ai reads it the way a
+security analyst would — parsing headers, verifying authentication, hunting
+typosquats, querying threat intel, and tracing the attack chain from spoofed
+sender to landing page. (The analysis engine lives in the `threadline/`
+package — every scan traces the thread of the attack.)
 
 Enterprises have SOC teams and commercial platforms for this. The average
-person has a spam folder. Threadline closes that gap — free, self-hostable,
+person has a spam folder. ReportIT.ai closes that gap — free, self-hostable,
 and fully auditable.
 
 ## Features
@@ -21,15 +22,15 @@ and fully auditable.
   score, findings in plain language, and an exportable markdown/JSON report
 - **Accounts & case history** — your investigations are saved; repeat
   offenders (same sender/domain across cases) are flagged automatically
-- **Admin dashboard** — user growth, cases per day, verdict breakdown
-- **Light & dark themes** — night-shift SOC desk or paper case file
+- **Admin dashboard** — user growth, scans per day, verdict breakdown
+- **Light & dark themes** — clean SaaS light or deep-navy dark
 - **CLI included** — everything works from the terminal too
 
 ## Quick start
 
 ```bash
-git clone https://github.com/YOURUSERNAME/threadline
-cd threadline
+git clone https://github.com/YOURUSERNAME/reportit
+cd reportit
 pip install -r requirements.txt
 
 # web app
@@ -67,7 +68,7 @@ ABUSEIPDB_API_KEY=...   # abuseipdb.com — free tier
 URLHAUS_API_KEY=...     # auth.abuse.ch — free
 ```
 
-No keys? Threadline still runs every offline heuristic plus RDAP domain-age
+No keys? ReportIT.ai still runs every offline heuristic plus RDAP domain-age
 checks. Lookups fail soft — a dead API never breaks a scan.
 
 ## Why you can trust it
@@ -75,7 +76,7 @@ checks. Lookups fail soft — a dead API never breaks a scan.
 - **Every heuristic is public code** — read [`threadline/`](threadline), it's small on purpose
 - **Runs on your machine** — Python + SQLite, no cloud dependency
 - **Defanged by design** — reports neutralize URLs (`hxxps://…[.]com`);
-  Threadline never visits links found in a message
+  links found in a message are never visited
 - **Your data stays put** — accounts and scan history live in a local
   `threadline.db`; the only outbound traffic is the reputation lookups you
   enable
@@ -83,18 +84,18 @@ checks. Lookups fail soft — a dead API never breaks a scan.
 ## Project layout
 
 ```
-threadline/
-  parser.py       raw email → headers, auth results, sender IP, bodies, attachments
-  auth.py         SPF/DKIM/DMARC + spoofing findings
-  urlscan.py      URL extraction + typosquat/heuristic analysis
-  reputation.py   RDAP, VirusTotal, AbuseIPDB, URLhaus
-  scanner.py      orchestration, scoring, attack-chain builder
-  report.py       markdown report generation
-  db.py           SQLite: users, sessions, scan history
-  cli.py          terminal interface
-app.py            FastAPI backend (pages + JSON API)
-static/           web UI — landing, auth, scanner, history, admin dashboard
-samples/          sanitized test emails (one phish, one clean)
+threadline/         the investigation engine
+  parser.py         raw email → headers, auth results, sender IP, bodies, attachments
+  auth.py           SPF/DKIM/DMARC + spoofing findings
+  urlscan.py        URL extraction + typosquat/heuristic analysis
+  reputation.py     RDAP, VirusTotal, AbuseIPDB, URLhaus
+  scanner.py        orchestration, scoring, attack-chain builder
+  report.py         markdown report generation
+  db.py             SQLite: users, sessions, scan history
+  cli.py            terminal interface
+app.py              FastAPI backend (pages + JSON API)
+static/             web UI — landing, auth, scanner, history, admin dashboard
+samples/            sanitized test emails (one phish, one clean)
 ```
 
 ## Roadmap

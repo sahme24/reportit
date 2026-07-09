@@ -20,7 +20,7 @@ from threadline.models import WARN, Finding
 from threadline.report import markdown_report
 from threadline.scanner import scan
 
-app = FastAPI(title="Threadline", version="0.2.0")
+app = FastAPI(title="ReportIT.ai", version="0.3.0")
 STATIC = Path(__file__).parent / "static"
 SAMPLES = Path(__file__).parent / "samples"
 

@@ -1,64 +1,70 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in — Threadline</title>
+<title>Sign in — ReportIT.ai</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
 <style>
-  .auth-wrap{max-width:420px;margin:48px auto 0;}
+  .auth-wrap{max-width:440px;margin:56px auto 0;}
+  .auth-title{text-align:center;margin-bottom:22px;}
+  .auth-title h2{font-size:24px;font-weight:700;}
+  .auth-title p{color:var(--dim);font-size:14px;margin:8px 0 0;}
   .tabs{display:flex;border-bottom:1px solid var(--line);}
   .tab{
-    flex:1;text-align:center;padding:13px;cursor:pointer;
-    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;
-    letter-spacing:0.08em;text-transform:uppercase;color:var(--faint);
-    border-bottom:2px solid transparent;margin-bottom:-1px;
+    flex:1;text-align:center;padding:14px;cursor:pointer;
+    font-family:'Poppins',sans-serif;font-size:14px;font-weight:600;color:var(--faint);
+    border-bottom:3px solid transparent;margin-bottom:-1px;
   }
-  .tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+  .tab.active{color:var(--primary);border-bottom-color:var(--primary);}
   .field{margin-bottom:16px;}
   .auth-note{
-    font-size:12.5px;color:var(--faint);margin-top:18px;line-height:1.7;
-    padding-top:14px;border-top:1px dashed var(--line-strong);
+    font-size:13px;color:var(--faint);margin-top:18px;line-height:1.7;
+    padding-top:16px;border-top:1px solid var(--line);
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="topbar" id="topbar"></header>
+<div id="topbar"></div>
 
+<div class="wrap page">
   <div class="auth-wrap">
-    <div class="panel ticked">
+    <div class="auth-title">
+      <h2>Welcome to ReportIT<span style="color:var(--primary)">.ai</span></h2>
+      <p>Your case history is saved to your account.</p>
+    </div>
+    <div class="panel lift">
       <div class="tabs">
         <div class="tab" data-mode="login" onclick="setMode('login')">Sign in</div>
         <div class="tab" data-mode="signup" onclick="setMode('signup')">Create account</div>
       </div>
-      <div class="panel-body" style="padding:24px;">
+      <div class="panel-body" style="padding:26px;">
         <form id="authForm" onsubmit="return submitAuth(event)">
           <div class="field" id="nameField" style="display:none;">
-            <label><span class="microlabel">Name</span>
+            <label><span class="field-label">Name</span>
               <input type="text" id="name" autocomplete="name" placeholder="What should we call you?">
             </label>
           </div>
           <div class="field">
-            <label><span class="microlabel">Email</span>
+            <label><span class="field-label">Email</span>
               <input type="email" id="email" autocomplete="email" required placeholder="you@example.com">
             </label>
           </div>
           <div class="field">
-            <label><span class="microlabel">Password</span>
+            <label><span class="field-label">Password</span>
               <input type="password" id="password" autocomplete="current-password" required
                      minlength="8" placeholder="8+ characters">
             </label>
           </div>
-          <button class="btn primary" type="submit" id="submitBtn" style="width:100%;">Sign in</button>
+          <button class="btn primary" type="submit" id="submitBtn" style="width:100%;justify-content:center;">Sign in</button>
           <div class="form-error" id="error"></div>
         </form>
         <div class="auth-note">
           Accounts exist so your case history is yours — nothing else.
           Passwords are salted &amp; hashed (PBKDF2), and the
-          <a href="https://github.com/YOURUSERNAME/threadline">code is public</a>
+          <a href="https://github.com/YOURUSERNAME/reportit">code is public</a>
           if you'd like to check.
         </div>
       </div>
@@ -76,7 +82,7 @@ function setMode(m) {
     t.classList.toggle("active", t.dataset.mode === m));
   document.getElementById("nameField").style.display = m === "signup" ? "" : "none";
   document.getElementById("submitBtn").textContent =
-    m === "signup" ? "Create account" : "Sign in";
+    m === "signup" ? "Create free account" : "Sign in";
   document.getElementById("password").autocomplete =
     m === "signup" ? "new-password" : "current-password";
   document.getElementById("error").textContent = "";
@@ -107,7 +113,7 @@ async function submitAuth(e) {
   return false;
 }
 
-Threadline.topbar("/login").then(user => { if (user) location.href = "/scan"; });
+ReportIT.topbar("/login").then(user => { if (user) location.href = "/scan"; });
 setMode(mode);
 </script>
 </body>

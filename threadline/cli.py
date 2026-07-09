@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         sev_color = {"MALICIOUS": "bad", "SUSPICIOUS": "warn",
                      "LIKELY CLEAN": "ok"}[case.verdict]
         print()
-        print(_c("bold", f"  THREADLINE · CASE #{case.case_id}", color))
+        print(_c("bold", f"  REPORTIT.AI · CASE #{case.case_id}", color))
         print(f"  {_c(sev_color, f'● {case.verdict} — {case.confidence} CONFIDENCE', color)}"
               f"  (score {case.score}/100)")
         print()
