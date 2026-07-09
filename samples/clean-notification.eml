@@ -1,0 +1,27 @@
+Return-Path: <noreply@github.com>
+Received: from smtp.github.com (smtp.github.com [192.30.252.206])
+	by mx.example.org (Postfix) with ESMTPS id 7AbC34def
+	for <j.doe@example.org>; Wed, 08 Jul 2026 11:02:10 -0400 (EDT)
+Received-SPF: pass (example.org: domain of github.com designates
+	192.30.252.206 as permitted sender) client-ip=192.30.252.206;
+Authentication-Results: mx.example.org;
+	spf=pass smtp.mailfrom=github.com;
+	dkim=pass header.d=github.com;
+	dmarc=pass (p=reject) header.from=github.com
+From: GitHub <noreply@github.com>
+To: j.doe@example.org
+Subject: [threadline] Your weekly digest
+Date: Wed, 08 Jul 2026 11:02:08 -0400
+Message-ID: <digest-4417@github.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Here's what happened in repositories you watch this week:
+
+- threadline/threadline: 3 new commits on main
+
+View it on GitHub:
+
+https://github.com/notifications
+
+You are receiving this because you are watching these repositories.

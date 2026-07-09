@@ -1,0 +1,19 @@
+# secrets & local state — never commit these
+.env
+threadline.db
+*.db
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# local tooling
+.claude/

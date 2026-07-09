@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Threadline — open-source phishing investigation for everyone</title>
+<meta name="description" content="Paste a suspicious email, get an analyst-grade investigation: authentication checks, typosquat detection, threat intel, and a traced attack chain. Free and open source.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+  .hero{padding:64px 0 48px;display:grid;grid-template-columns:1.1fr 1fr;gap:44px;align-items:center;}
+  @media (max-width:860px){.hero{grid-template-columns:1fr;}}
+  .hero h1{font-size:clamp(30px,4.5vw,44px);letter-spacing:-0.01em;}
+  .hero h1 em{font-style:normal;color:var(--amber);}
+  .hero p.lede{color:var(--dim);font-size:16.5px;max-width:46ch;margin:18px 0 26px;}
+  .hero-ctas{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+
+  /* mini case-card demo in the hero */
+  .demo-card{box-shadow:var(--shadow);}
+  .demo-line{font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.9;color:var(--dim);word-break:break-all;}
+  .demo-line b{color:var(--ink);font-weight:500;}
+  .demo-flag{color:var(--red);}
+  .demo-chain{display:flex;align-items:center;gap:0;padding-top:14px;margin-top:14px;border-top:1px dashed var(--line-strong);overflow-x:auto;}
+  .demo-node{display:flex;flex-direction:column;align-items:center;min-width:74px;flex-shrink:0;}
+  .demo-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-size:9px;border:2px solid var(--line);background:var(--panel-2);color:var(--dim);}
+  .demo-circle.bad{border-color:var(--red);color:var(--red);background:var(--red-wash);}
+  .demo-circle.warn{border-color:var(--amber);color:var(--amber);background:var(--amber-wash);}
+  .demo-label{font-size:9.5px;margin-top:5px;color:var(--dim);font-family:'IBM Plex Mono',monospace;}
+  .demo-connector{flex:1;height:2px;background:var(--red);opacity:0.4;min-width:14px;position:relative;top:-9px;}
+
+  .stats-strip{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 60px;
+  }
+  @media (max-width:720px){.stats-strip{grid-template-columns:1fr;}}
+  .stat{padding:20px 22px;text-align:left;}
+  .stat .num{font-family:'Space Grotesk',sans-serif;font-size:34px;font-weight:700;color:var(--ink);}
+  .stat .num span{color:var(--amber);}
+  .section{margin:70px 0;}
+  .section-kicker{margin-bottom:10px;}
+  .section h2{font-size:27px;margin-bottom:14px;}
+  .section p.big{color:var(--dim);font-size:15.5px;max-width:68ch;}
+
+  .gap-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px;}
+  @media (max-width:720px){.gap-grid{grid-template-columns:1fr;}}
+  .gap-card{padding:22px;}
+  .gap-card h3{font-size:16px;margin-bottom:10px;}
+  .gap-card ul{margin:0;padding-left:18px;color:var(--dim);font-size:14px;line-height:1.9;}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:26px;}
+  @media (max-width:820px){.steps{grid-template-columns:1fr;}}
+  .step{padding:22px;}
+  .step .stepnum{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber);
+    border:1.5px solid var(--amber);border-radius:50%;
+    width:28px;height:28px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;
+  }
+  .step h3{font-size:15.5px;margin-bottom:8px;}
+  .step p{color:var(--dim);font-size:13.5px;margin:0;}
+
+  .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:26px;}
+  @media (max-width:820px){.checks{grid-template-columns:1fr 1fr;}}
+  @media (max-width:560px){.checks{grid-template-columns:1fr;}}
+  .check{padding:18px 20px;}
+  .check h3{font-size:14px;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+  .check p{color:var(--dim);font-size:13px;margin:0;}
+
+  .trust{display:grid;grid-template-columns:1.2fr 1fr;gap:36px;align-items:start;}
+  @media (max-width:820px){.trust{grid-template-columns:1fr;}}
+  .trust-points{margin:18px 0 0;padding:0;list-style:none;}
+  .trust-points li{
+    display:flex;gap:12px;padding:11px 0;color:var(--dim);font-size:14.5px;
+    border-bottom:1px dashed var(--line);
+  }
+  .trust-points li b{color:var(--ink);font-weight:600;}
+  .trust-points .tick{color:var(--teal);font-family:'IBM Plex Mono',monospace;flex-shrink:0;}
+  .repo-card{padding:22px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:2;color:var(--dim);}
+  .repo-card .cmd{color:var(--ink);}
+  .repo-card .cmt{color:var(--faint);}
+
+  .cta-final{text-align:center;padding:56px 24px;margin-top:70px;}
+  .cta-final h2{font-size:26px;margin-bottom:10px;}
+  .cta-final p{color:var(--dim);margin:0 0 24px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar" id="topbar"></header>
+
+  <section class="hero">
+    <div>
+      <div class="microlabel section-kicker">Open-source phishing investigation</div>
+      <h1>Every phishing email tells a story.<br><em>Threadline reads it.</em></h1>
+      <p class="lede">
+        Paste a suspicious email and get the investigation a security analyst
+        would do by hand — authentication checks, typosquat hunting, threat
+        intel lookups, and the attack chain traced end to end. In seconds, for free.
+      </p>
+      <div class="hero-ctas">
+        <a href="/login?mode=signup" class="btn primary" style="text-decoration:none">Open your first case →</a>
+        <a href="https://github.com/YOURUSERNAME/threadline" class="btn ghost" style="text-decoration:none">View source on GitHub</a>
+      </div>
+    </div>
+
+    <div class="panel ticked demo-card">
+      <div class="panel-head">
+        <span class="panel-title">Case #8315</span>
+        <span class="stamp bad" style="font-size:10.5px;padding:4px 9px;">● MALICIOUS</span>
+      </div>
+      <div class="panel-body">
+        <div class="demo-line"><b>From:</b> IT-Support@<span class="demo-flag">0ffice365</span>-secure.com</div>
+        <div class="demo-line"><b>SPF:</b> <span class="demo-flag">fail</span> · <b>DKIM:</b> <span class="demo-flag">fail</span> · <b>DMARC:</b> <span class="demo-flag">fail</span></div>
+        <div class="demo-line"><b>URL:</b> hxxps://0ffice365-secure[.]com/reset</div>
+        <div class="demo-chain">
+          <div class="demo-node"><div class="demo-circle bad">01</div><div class="demo-label">sender</div></div>
+          <div class="demo-connector"></div>
+          <div class="demo-node"><div class="demo-circle bad">02</div><div class="demo-label">auth</div></div>
+          <div class="demo-connector"></div>
+          <div class="demo-node"><div class="demo-circle warn">03</div><div class="demo-label">link</div></div>
+          <div class="demo-connector"></div>
+          <div class="demo-node"><div class="demo-circle bad">04</div><div class="demo-label">landing</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats-strip">
+    <div class="panel stat"><div class="microlabel">Cases opened</div><div class="num" id="statScans">—</div></div>
+    <div class="panel stat"><div class="microlabel">Analysts on board</div><div class="num" id="statUsers">—</div></div>
+    <div class="panel stat"><div class="microlabel">Malicious indicators flagged</div><div class="num" id="statIndicators">—</div></div>
+  </div>
+
+  <section class="section" id="gap">
+    <div class="microlabel section-kicker">Why Threadline exists</div>
+    <h2>Enterprises have SOC teams. You have a spam folder.</h2>
+    <p class="big">
+      When a suspicious email lands at a big company, a trained analyst pulls the
+      headers, verifies the sender, checks every link against threat intel, and
+      writes it up. When the same email lands in your inbox — or your parents' —
+      there's nobody. The tools exist, but they're enterprise products with
+      enterprise price tags. Threadline puts that entire investigation, automated,
+      in everyone's hands.
+    </p>
+    <div class="gap-grid">
+      <div class="panel gap-card">
+        <h3>🏢 What enterprises get</h3>
+        <ul>
+          <li>Dedicated SOC analysts triaging every report</li>
+          <li>Commercial threat-intel platforms</li>
+          <li>Brand impersonation &amp; typosquat monitoring</li>
+          <li>Formal incident reports and takedowns</li>
+        </ul>
+      </div>
+      <div class="panel gap-card ticked">
+        <h3>🧵 What Threadline gives everyone</h3>
+        <ul>
+          <li>The same investigation, automated — in seconds</li>
+          <li>Public threat-intel sources, free tiers</li>
+          <li>40+ header, URL, and content checks</li>
+          <li>A report you can send to any abuse desk</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="microlabel section-kicker">How it works</div>
+    <h2>Three steps from "this looks off" to a full case file.</h2>
+    <div class="steps">
+      <div class="panel step">
+        <div class="stepnum">01</div>
+        <h3>Paste the raw email</h3>
+        <p>In Gmail: ⋮ → "Show original". In Outlook: "View message source".
+           Copy everything — headers included — and paste it in. Nothing is
+           forwarded anywhere; analysis runs on the server you're using.</p>
+      </div>
+      <div class="panel step">
+        <div class="stepnum">02</div>
+        <h3>Threadline investigates</h3>
+        <p>It verifies SPF/DKIM/DMARC, extracts the true sender IP, hunts
+           typosquats like <span class="mono">0ffice365</span>, checks domain age
+           via RDAP, and cross-references VirusTotal, AbuseIPDB, and URLhaus.</p>
+      </div>
+      <div class="panel step">
+        <div class="stepnum">03</div>
+        <h3>Read the verdict</h3>
+        <p>A 0–100 risk score, every finding explained in plain language, the
+           attack chain traced sender → link → landing page, and a defanged
+           markdown report ready for a SOC or abuse desk.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="microlabel section-kicker">The checks</div>
+    <h2>What gets examined in every case.</h2>
+    <div class="checks">
+      <div class="panel check"><h3><span class="dot bad"></span>Sender authentication</h3><p>SPF, DKIM, and DMARC results; originating IP recovered from the Received chain.</p></div>
+      <div class="panel check"><h3><span class="dot bad"></span>Impersonation</h3><p>Homoglyph typosquats, look-alike domains, display names claiming brands they don't own.</p></div>
+      <div class="panel check"><h3><span class="dot warn"></span>Link forensics</h3><p>Punycode, @-tricks, shorteners, high-abuse TLDs, anchor text that lies about its destination.</p></div>
+      <div class="panel check"><h3><span class="dot warn"></span>Reputation</h3><p>Domain age via RDAP, VirusTotal, AbuseIPDB, and URLhaus — free keys, all optional.</p></div>
+      <div class="panel check"><h3><span class="dot info"></span>Attachments</h3><p>Executable and macro-capable types flagged; SHA-256 recorded for every file.</p></div>
+      <div class="panel check"><h3><span class="dot ok"></span>History</h3><p>Repeat offenders — the same sender or domain showing up across earlier cases.</p></div>
+    </div>
+  </section>
+
+  <section class="section trust" id="trust">
+    <div>
+      <div class="microlabel section-kicker">Trust through transparency</div>
+      <h2>A security tool you can read, line by line.</h2>
+      <p class="big">
+        You shouldn't have to trust a black box with your email. Threadline is
+        fully open source — audit the checks, run it on your own machine, and
+        verify exactly what leaves it (by default: nothing but optional,
+        anonymous reputation lookups).
+      </p>
+      <ul class="trust-points">
+        <li><span class="tick">✓</span><span><b>Open source, MIT licensed.</b> Every heuristic and API call is public code.</span></li>
+        <li><span class="tick">✓</span><span><b>Self-hostable in two commands.</b> Python + SQLite. No cloud dependency.</span></li>
+        <li><span class="tick">✓</span><span><b>Defanged by design.</b> Malicious URLs are neutralized in every report, and Threadline never visits links.</span></li>
+        <li><span class="tick">✓</span><span><b>Your keys, your quota.</b> Threat-intel APIs run on your own free-tier keys — or not at all.</span></li>
+      </ul>
+    </div>
+    <div class="panel ticked repo-card">
+      <div class="microlabel" style="margin-bottom:10px;">Run it yourself</div>
+      <div><span class="cmt"># clone and install</span></div>
+      <div class="cmd">git clone https://github.com/YOURUSERNAME/threadline</div>
+      <div class="cmd">pip install -r requirements.txt</div>
+      <div style="margin-top:8px;"><span class="cmt"># scan from the terminal…</span></div>
+      <div class="cmd">python -m threadline suspicious.eml</div>
+      <div style="margin-top:8px;"><span class="cmt"># …or run the full web app</span></div>
+      <div class="cmd">uvicorn app:app</div>
+    </div>
+  </section>
+
+  <div class="panel ticked cta-final">
+    <h2>The next suspicious email doesn't have to be a guess.</h2>
+    <p>Free account, no card, open code.</p>
+    <a href="/login?mode=signup" class="btn primary" style="text-decoration:none">Start investigating →</a>
+  </div>
+
+  <footer class="footer">
+    <span>Threadline — open-source phishing investigation.</span>
+    <span>
+      <a href="https://github.com/YOURUSERNAME/threadline">GitHub</a> ·
+      <a href="/#how">How it works</a> ·
+      <a href="/login">Sign in</a>
+    </span>
+  </footer>
+</div>
+
+<script src="/static/shared.js"></script>
+<script>
+Threadline.topbar("/");
+(async () => {
+  try {
+    const s = await (await fetch("/api/stats")).json();
+    const fmt = n => n.toLocaleString();
+    document.getElementById("statScans").textContent = fmt(s.scans);
+    document.getElementById("statUsers").textContent = fmt(s.users);
+    document.getElementById("statIndicators").textContent = fmt(s.indicators);
+  } catch {}
+})();
+</script>
+</body>
+</html>

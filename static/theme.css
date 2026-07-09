@@ -1,0 +1,222 @@
+/* Threadline design system — "case file" aesthetic.
+   Dark = night-shift SOC desk. Light = paper case file.
+   Chart colors are CVD-validated per theme; don't swap them casually. */
+
+:root, :root[data-theme="dark"]{
+  --bg:#10141B;
+  --bg-dot:rgba(231,228,220,0.045);
+  --panel:#171D27;
+  --panel-2:#1C2330;
+  --line:#2A3242;
+  --line-strong:#3A445C;
+  --ink:#E7E4DC;
+  --dim:#9CA3AF;
+  --faint:#646C7A;
+  --amber:#E8A33D;
+  --amber-ink:#1A1207;
+  --teal:#4FBFAE;
+  --red:#E0563D;
+  --amber-wash:rgba(232,163,61,0.10);
+  --teal-wash:rgba(79,191,174,0.10);
+  --red-wash:rgba(224,86,61,0.10);
+  --chart-amber:#C77F1F;
+  --chart-teal:#35A896;
+  --chart-red:#DE5038;
+  --shadow:0 12px 40px rgba(0,0,0,0.35);
+}
+:root[data-theme="light"]{
+  --bg:#F2EFE6;
+  --bg-dot:rgba(28,33,43,0.06);
+  --panel:#FBFAF4;
+  --panel-2:#F3F0E5;
+  --line:#DCD6C4;
+  --line-strong:#C4BCA4;
+  --ink:#1C212B;
+  --dim:#5E6673;
+  --faint:#98917E;
+  --amber:#AD741D;
+  --amber-ink:#FFF9EC;
+  --teal:#00876F;
+  --red:#C13E29;
+  --amber-wash:rgba(173,116,29,0.10);
+  --teal-wash:rgba(0,135,111,0.10);
+  --red-wash:rgba(193,62,41,0.10);
+  --chart-amber:#AD741D;
+  --chart-teal:#00876F;
+  --chart-red:#C13E29;
+  --shadow:0 12px 32px rgba(60,50,20,0.10);
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  background-image:radial-gradient(var(--bg-dot) 1px, transparent 1px);
+  background-size:26px 26px;
+  color:var(--ink);
+  font-family:'Inter',system-ui,sans-serif;
+  min-height:100vh;
+  font-size:15px;
+  line-height:1.55;
+  transition:background-color 0.2s ease, color 0.2s ease;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px;}
+a{color:var(--amber);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ------------------------------------------------------------------ type */
+h1,h2,h3{font-family:'Space Grotesk',sans-serif;font-weight:600;line-height:1.15;margin:0;}
+.microlabel{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;font-weight:500;
+  text-transform:uppercase;letter-spacing:0.14em;
+  color:var(--faint);
+}
+.mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ---------------------------------------------------------------- topbar */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:18px 0;margin-bottom:28px;
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);}
+.brand:hover{text-decoration:none;}
+.brand-mark{
+  width:22px;height:22px;border:2px solid var(--amber);border-radius:50%;
+  position:relative;flex-shrink:0;
+}
+.brand-mark::after{
+  content:'';position:absolute;top:50%;left:50%;
+  width:8px;height:8px;background:var(--amber);border-radius:50%;
+  transform:translate(-50%,-50%);
+}
+.brand-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;}
+.nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.nav a{
+  font-size:13.5px;font-weight:500;color:var(--dim);
+  padding:7px 12px;border-radius:4px;
+}
+.nav a:hover{color:var(--ink);text-decoration:none;background:var(--panel-2);}
+.nav a.active{color:var(--amber);}
+.userchip{
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--dim);
+  padding:6px 10px;border:1px dashed var(--line-strong);border-radius:4px;
+}
+
+/* --------------------------------------------------------------- buttons */
+.btn{
+  font-family:'IBM Plex Mono',monospace;font-size:12.5px;font-weight:500;
+  letter-spacing:0.04em;
+  padding:10px 18px;border-radius:4px;cursor:pointer;
+  border:1px solid var(--line-strong);background:var(--panel);color:var(--ink);
+  transition:border-color 0.15s ease, background 0.15s ease;
+}
+.btn:hover{border-color:var(--amber);}
+.btn.primary{background:var(--amber);color:var(--amber-ink);border-color:var(--amber);font-weight:600;}
+.btn.primary:hover{filter:brightness(1.08);}
+.btn.ghost{background:transparent;}
+.btn:disabled{opacity:0.5;cursor:wait;}
+.theme-toggle{
+  width:36px;height:36px;padding:0;display:inline-flex;
+  align-items:center;justify-content:center;font-size:15px;
+  background:transparent;border:1px solid var(--line);border-radius:4px;
+  cursor:pointer;color:var(--dim);
+}
+.theme-toggle:hover{border-color:var(--amber);color:var(--ink);}
+
+/* ---------------------------------------------------------------- panels */
+/* Corner ticks = evidence-tag look. The signature Threadline panel. */
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  position:relative;
+}
+.panel.ticked::before,.panel.ticked::after{
+  content:'';position:absolute;width:10px;height:10px;pointer-events:none;
+}
+.panel.ticked::before{
+  top:-1px;left:-1px;
+  border-top:2px solid var(--amber);border-left:2px solid var(--amber);
+}
+.panel.ticked::after{
+  bottom:-1px;right:-1px;
+  border-bottom:2px solid var(--amber);border-right:2px solid var(--amber);
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+}
+.panel-title{
+  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.07em;color:var(--dim);
+}
+.panel-body{padding:16px;}
+.dashed-divider{border:none;border-top:1px dashed var(--line-strong);margin:14px 0;}
+
+/* ---------------------------------------------------------------- verdict */
+.stamp{
+  font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
+  letter-spacing:0.06em;padding:7px 13px;border-radius:3px;
+  display:inline-block;white-space:nowrap;
+  transform:rotate(-1.2deg);
+}
+.stamp.bad{background:var(--red-wash);color:var(--red);border:1.5px solid var(--red);}
+.stamp.warn{background:var(--amber-wash);color:var(--amber);border:1.5px solid var(--amber);}
+.stamp.ok{background:var(--teal-wash);color:var(--teal);border:1.5px solid var(--teal);}
+
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot.bad{background:var(--red);}
+.dot.warn{background:var(--amber);}
+.dot.ok{background:var(--teal);}
+.dot.info{background:var(--faint);}
+
+.chip{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;
+  padding:3px 8px;border-radius:3px;white-space:nowrap;
+}
+.chip.bad{background:var(--red-wash);color:var(--red);}
+.chip.warn{background:var(--amber-wash);color:var(--amber);}
+.chip.ok{background:var(--teal-wash);color:var(--teal);}
+
+/* ----------------------------------------------------------------- forms */
+input[type=text],input[type=email],input[type=password],textarea{
+  width:100%;
+  background:var(--panel-2);color:var(--ink);
+  border:1px solid var(--line);border-radius:4px;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;
+  padding:11px 13px;outline:none;
+  transition:border-color 0.15s ease;
+}
+input:focus,textarea:focus{border-color:var(--amber);}
+label .microlabel{display:block;margin-bottom:6px;}
+.form-error{color:var(--red);font-size:13px;min-height:18px;margin-top:8px;}
+
+/* ---------------------------------------------------------------- tables */
+table.data{
+  width:100%;border-collapse:collapse;font-size:13px;
+}
+table.data th{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;
+  text-transform:uppercase;letter-spacing:0.1em;color:var(--faint);
+  text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-strong);
+}
+table.data td{
+  padding:9px 10px;border-bottom:1px solid var(--line);color:var(--dim);
+  vertical-align:top;
+}
+table.data td:first-child{color:var(--ink);}
+.table-scroll{overflow-x:auto;}
+
+/* ------------------------------------------------------------ footer */
+.footer{
+  margin-top:64px;padding:26px 0 40px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-size:13px;color:var(--faint);
+}
+.footer a{color:var(--dim);}
+
+@media (max-width:720px){
+  .nav a{padding:6px 8px;}
+  body{font-size:14px;}
+}

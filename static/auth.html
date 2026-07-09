@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Threadline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+  .auth-wrap{max-width:420px;margin:48px auto 0;}
+  .tabs{display:flex;border-bottom:1px solid var(--line);}
+  .tab{
+    flex:1;text-align:center;padding:13px;cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;
+    letter-spacing:0.08em;text-transform:uppercase;color:var(--faint);
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+  .field{margin-bottom:16px;}
+  .auth-note{
+    font-size:12.5px;color:var(--faint);margin-top:18px;line-height:1.7;
+    padding-top:14px;border-top:1px dashed var(--line-strong);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar" id="topbar"></header>
+
+  <div class="auth-wrap">
+    <div class="panel ticked">
+      <div class="tabs">
+        <div class="tab" data-mode="login" onclick="setMode('login')">Sign in</div>
+        <div class="tab" data-mode="signup" onclick="setMode('signup')">Create account</div>
+      </div>
+      <div class="panel-body" style="padding:24px;">
+        <form id="authForm" onsubmit="return submitAuth(event)">
+          <div class="field" id="nameField" style="display:none;">
+            <label><span class="microlabel">Name</span>
+              <input type="text" id="name" autocomplete="name" placeholder="What should we call you?">
+            </label>
+          </div>
+          <div class="field">
+            <label><span class="microlabel">Email</span>
+              <input type="email" id="email" autocomplete="email" required placeholder="you@example.com">
+            </label>
+          </div>
+          <div class="field">
+            <label><span class="microlabel">Password</span>
+              <input type="password" id="password" autocomplete="current-password" required
+                     minlength="8" placeholder="8+ characters">
+            </label>
+          </div>
+          <button class="btn primary" type="submit" id="submitBtn" style="width:100%;">Sign in</button>
+          <div class="form-error" id="error"></div>
+        </form>
+        <div class="auth-note">
+          Accounts exist so your case history is yours — nothing else.
+          Passwords are salted &amp; hashed (PBKDF2), and the
+          <a href="https://github.com/YOURUSERNAME/threadline">code is public</a>
+          if you'd like to check.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/shared.js"></script>
+<script>
+let mode = new URLSearchParams(location.search).get("mode") === "signup" ? "signup" : "login";
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.mode === m));
+  document.getElementById("nameField").style.display = m === "signup" ? "" : "none";
+  document.getElementById("submitBtn").textContent =
+    m === "signup" ? "Create account" : "Sign in";
+  document.getElementById("password").autocomplete =
+    m === "signup" ? "new-password" : "current-password";
+  document.getElementById("error").textContent = "";
+}
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  try {
+    const body = {
+      email: document.getElementById("email").value,
+      password: document.getElementById("password").value,
+    };
+    if (mode === "signup") body.name = document.getElementById("name").value;
+    const r = await fetch(`/api/${mode}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || r.statusText);
+    location.href = new URLSearchParams(location.search).get("next") || "/scan";
+  } catch (err) {
+    document.getElementById("error").textContent = err.message;
+    btn.disabled = false;
+  }
+  return false;
+}
+
+Threadline.topbar("/login").then(user => { if (user) location.href = "/scan"; });
+setMode(mode);
+</script>
+</body>
+</html>

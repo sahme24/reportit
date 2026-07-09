@@ -1,0 +1,223 @@
+"""SQLite storage: users, sessions, and scan history.
+
+Single-file database (threadline.db by default, THREADLINE_DB to override).
+Passwords are salted PBKDF2-SHA256 — no plaintext, no external auth deps.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import os
+import secrets
+import sqlite3
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+_DB_PATH = Path(os.environ.get("THREADLINE_DB", "threadline.db"))
+_PBKDF2_ROUNDS = 200_000
+SESSION_DAYS = 30
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    pw_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    expires_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS scans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id),
+    case_id TEXT NOT NULL,
+    verdict TEXT NOT NULL,
+    confidence TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    from_addr TEXT,
+    subject TEXT,
+    top_domain TEXT,
+    bad_findings INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scans_user ON scans(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_scans_sender ON scans(from_addr);
+CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(top_domain);
+"""
+
+
+def _connect() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db() -> None:
+    with _connect() as conn:
+        conn.executescript(_SCHEMA)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _hash_password(password: str, salt: str) -> str:
+    return hashlib.pbkdf2_hmac(
+        "sha256", password.encode(), bytes.fromhex(salt), _PBKDF2_ROUNDS
+    ).hex()
+
+
+# --------------------------------------------------------------------------
+# Users & sessions
+# --------------------------------------------------------------------------
+
+def create_user(email: str, name: str, password: str) -> tuple[dict | None, str]:
+    email = email.strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return None, "That doesn't look like an email address."
+    if len(password) < 8:
+        return None, "Password must be at least 8 characters."
+    salt = secrets.token_hex(16)
+    with _connect() as conn:
+        first_user = conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"] == 0
+        try:
+            cur = conn.execute(
+                "INSERT INTO users (email, name, pw_hash, salt, is_admin, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (email, name.strip() or email.split("@")[0],
+                 _hash_password(password, salt), salt, int(first_user), _now()))
+        except sqlite3.IntegrityError:
+            return None, "An account with that email already exists."
+        user_id = cur.lastrowid
+    # look up outside the with-block so the insert is committed first
+    return get_user(user_id), ""
+
+
+def verify_user(email: str, password: str) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?",
+                           (email.strip().lower(),)).fetchone()
+    if not row:
+        return None
+    if hmac.compare_digest(_hash_password(password, row["salt"]), row["pw_hash"]):
+        return _public_user(row)
+    return None
+
+
+def get_user(user_id: int) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return _public_user(row) if row else None
+
+
+def _public_user(row: sqlite3.Row) -> dict:
+    return {"id": row["id"], "email": row["email"], "name": row["name"],
+            "is_admin": bool(row["is_admin"]), "created_at": row["created_at"]}
+
+
+def create_session(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    expires = (datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)).isoformat()
+    with _connect() as conn:
+        conn.execute("INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?,?)",
+                     (token, user_id, expires))
+    return token
+
+
+def user_for_session(token: str) -> dict | None:
+    if not token:
+        return None
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id"
+            " WHERE s.token = ? AND s.expires_at > ?", (token, _now())).fetchone()
+    return _public_user(row) if row else None
+
+
+def delete_session(token: str) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+
+
+# --------------------------------------------------------------------------
+# Scans
+# --------------------------------------------------------------------------
+
+def record_scan(user_id: int | None, case: dict) -> None:
+    top_domain = next((u["domain"] for u in case["urls"] if u["domain"]), "")
+    bad = sum(1 for f in case["findings"] if f["severity"] == "bad")
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO scans (user_id, case_id, verdict, confidence, score,"
+            " from_addr, subject, top_domain, bad_findings, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (user_id, case["case_id"], case["verdict"], case["confidence"],
+             case["score"], case["headers"]["from_addr"],
+             case["headers"]["subject"][:200], top_domain, bad, _now()))
+
+
+def prior_sightings(from_addr: str, domain: str) -> dict:
+    """How many earlier cases on this instance saw the same sender or domain."""
+    with _connect() as conn:
+        sender = conn.execute(
+            "SELECT COUNT(*) c FROM scans WHERE from_addr = ? AND from_addr != ''",
+            (from_addr,)).fetchone()["c"] if from_addr else 0
+        dom = conn.execute(
+            "SELECT COUNT(*) c FROM scans WHERE top_domain = ? AND top_domain != ''",
+            (domain,)).fetchone()["c"] if domain else 0
+    return {"sender": sender, "domain": dom}
+
+
+def user_scans(user_id: int, limit: int = 50) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT case_id, verdict, confidence, score, from_addr, subject,"
+            " top_domain, created_at FROM scans WHERE user_id = ?"
+            " ORDER BY id DESC LIMIT ?", (user_id, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# --------------------------------------------------------------------------
+# Stats
+# --------------------------------------------------------------------------
+
+def public_stats() -> dict:
+    with _connect() as conn:
+        return {
+            "scans": conn.execute("SELECT COUNT(*) c FROM scans").fetchone()["c"],
+            "users": conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"],
+            "indicators": conn.execute(
+                "SELECT COALESCE(SUM(bad_findings),0) c FROM scans").fetchone()["c"],
+        }
+
+
+def admin_stats() -> dict:
+    with _connect() as conn:
+        verdicts = {r["verdict"]: r["c"] for r in conn.execute(
+            "SELECT verdict, COUNT(*) c FROM scans GROUP BY verdict")}
+        days = [dict(r) for r in conn.execute(
+            "SELECT substr(created_at, 1, 10) day, COUNT(*) c FROM scans"
+            " WHERE created_at > datetime('now', '-14 days')"
+            " GROUP BY day ORDER BY day")]
+        signups = [dict(r) for r in conn.execute(
+            "SELECT substr(created_at, 1, 10) day, COUNT(*) c FROM users"
+            " WHERE created_at > datetime('now', '-14 days')"
+            " GROUP BY day ORDER BY day")]
+        recent_users = [dict(r) for r in conn.execute(
+            "SELECT u.name, u.email, u.created_at,"
+            " (SELECT COUNT(*) FROM scans s WHERE s.user_id = u.id) scan_count"
+            " FROM users u ORDER BY u.id DESC LIMIT 20")]
+        recent_scans = [dict(r) for r in conn.execute(
+            "SELECT s.case_id, s.verdict, s.score, s.from_addr, s.created_at,"
+            " u.email FROM scans s LEFT JOIN users u ON u.id = s.user_id"
+            " ORDER BY s.id DESC LIMIT 20")]
+    return {**public_stats(), "verdicts": verdicts, "scans_by_day": days,
+            "signups_by_day": signups, "recent_users": recent_users,
+            "recent_scans": recent_scans}

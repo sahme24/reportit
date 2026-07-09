@@ -1,0 +1,28 @@
+Return-Path: <bounce@mail-relay-serv.top>
+Received: from mail-relay-serv.top (unknown [185.220.101.47])
+	by mx.example.org (Postfix) with ESMTP id 4XyZ12abc
+	for <j.doe@example.org>; Wed, 08 Jul 2026 09:14:22 -0400 (EDT)
+Received-SPF: fail (example.org: domain of 0ffice365-secure.com does not
+	designate 185.220.101.47 as permitted sender) client-ip=185.220.101.47;
+Authentication-Results: mx.example.org;
+	spf=fail smtp.mailfrom=0ffice365-secure.com;
+	dkim=fail (body hash mismatch) header.d=0ffice365-secure.com;
+	dmarc=fail (p=reject sp=none) header.from=0ffice365-secure.com
+From: IT-Support <IT-Support@0ffice365-secure.com>
+Reply-To: admin@0ffice365-secure.com
+To: j.doe@example.org
+Subject: Action Required: Password Expires Today
+Date: Wed, 08 Jul 2026 09:14:20 -0400
+Message-ID: <20260708131420.8841@0ffice365-secure.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+
+Hi, your password will expire in 24 hours.
+Click below to keep your account active:
+
+https://0ffice365-secure.com/reset?id=8841
+
+If you do not verify your account it will be closed.
+
+IT Support Desk
+Microsoft Office 365

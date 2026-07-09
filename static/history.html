@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case History — Threadline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+  .empty{
+    text-align:center;padding:56px 20px;color:var(--faint);font-size:14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topbar" id="topbar"></header>
+
+  <div style="margin-bottom:20px;">
+    <div class="microlabel">Your archive</div>
+    <h2 style="font-size:24px;">Case History</h2>
+  </div>
+
+  <div class="panel ticked">
+    <div class="panel-head">
+      <span class="panel-title">Closed Cases</span>
+      <span class="microlabel" id="count"></span>
+    </div>
+    <div class="table-scroll">
+      <table class="data" id="table">
+        <thead><tr>
+          <th>Case</th><th>Verdict</th><th>Risk</th><th>From</th>
+          <th>Subject</th><th>Opened</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" style="display:none;">
+        No cases yet. <a href="/scan">Open your first one →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/shared.js"></script>
+<script>
+const esc = Threadline.esc;
+const chip = v => v === "MALICIOUS" ? "bad" : v === "SUSPICIOUS" ? "warn" : "ok";
+
+Threadline.topbar("/history").then(async user => {
+  if (!user) { location.href = "/login?next=/history"; return; }
+  const r = await fetch("/api/history");
+  const { scans } = await r.json();
+  document.getElementById("count").textContent = `${scans.length} ON FILE`;
+  if (!scans.length) {
+    document.getElementById("table").style.display = "none";
+    document.getElementById("empty").style.display = "";
+    return;
+  }
+  document.getElementById("rows").innerHTML = scans.map(s => `
+    <tr>
+      <td class="mono">#${esc(s.case_id)}</td>
+      <td><span class="chip ${chip(s.verdict)}">${esc(s.verdict)}</span></td>
+      <td class="mono">${s.score}/100</td>
+      <td class="mono">${esc(s.from_addr || "—")}</td>
+      <td>${esc(s.subject || "—")}</td>
+      <td class="mono">${esc((s.created_at || "").slice(0, 16).replace("T", " "))}</td>
+    </tr>`).join("");
+});
+</script>
+</body>
+</html>
