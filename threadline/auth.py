@@ -34,7 +34,17 @@ def auth_findings(email: ParsedEmail) -> list[Finding]:
               (("spf", email.spf), ("dkim", email.dkim), ("dmarc", email.dmarc))
               if r == "pass"]
 
-    if len(failed) == 3:
+    forwarded = email.forwarded or email.auth_earlier_pass
+    if failed and forwarded:
+        why = ("an earlier hop recorded SPF and DKIM passing for the same domain"
+               if email.auth_earlier_pass else
+               "the message carries Resent-/Forwarded headers")
+        findings.append(Finding(INFO, "Authentication failed after forwarding",
+                                f"{' and '.join(failed)} fail at the final hop, but "
+                                f"{why} — this pattern matches a forwarded email, "
+                                "not sender spoofing. Judge the links and content "
+                                "on their own merits.", weight=5, category="auth"))
+    elif len(failed) == 3:
         detail = "SPF, DKIM, and DMARC all fail."
         if email.sender_ip:
             detail += f" Sending IP {email.sender_ip} is not authorized for this domain."

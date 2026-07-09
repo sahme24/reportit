@@ -29,6 +29,8 @@ class ParsedEmail:
     dmarc_detail: str
     body_text: str
     body_html: str
+    forwarded: bool = False          # Resent-*/X-Forwarded-* headers present
+    auth_earlier_pass: bool = False  # an earlier hop saw SPF+DKIM pass
     attachments: list[dict] = field(default_factory=list)
     raw: bytes = b""
 
@@ -67,6 +69,23 @@ def _auth_results(msg: EmailMessage) -> dict[str, str]:
         details["spf"] = received_spf.strip()
 
     return {**results, **{f"{k}_detail": v for k, v in details.items()}}
+
+
+def _earlier_hop_pass(msg: EmailMessage) -> bool:
+    """True if ANY Authentication-Results header records SPF and DKIM both
+    passing — the signature of a message that authenticated fine at an
+    earlier hop and only 'failed' because it was forwarded afterwards."""
+    for header in msg.get_all("Authentication-Results", []):
+        hop = {m.lower(): r.lower() for m, r in _AUTH_RE.findall(header)}
+        if hop.get("spf") == "pass" and hop.get("dkim") == "pass":
+            return True
+    return False
+
+
+def _is_forwarded(msg: EmailMessage) -> bool:
+    return any(msg.get(h) for h in
+               ("Resent-From", "Resent-To", "Resent-Message-ID",
+                "X-Forwarded-For", "X-Forwarded-Encrypted"))
 
 
 def _sender_ip(msg: EmailMessage) -> str:
@@ -150,6 +169,8 @@ def parse_email(raw: bytes | str) -> ParsedEmail:
         dmarc_detail=auth["dmarc_detail"],
         body_text=text,
         body_html=html,
+        forwarded=_is_forwarded(msg),
+        auth_earlier_pass=_earlier_hop_pass(msg),
         attachments=_attachments(msg),
         raw=raw,
     )

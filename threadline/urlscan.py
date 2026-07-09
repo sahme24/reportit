@@ -29,7 +29,7 @@ BRANDS: dict[str, tuple[str, ...]] = {
     "fedex": ("fedex.com",),
     "dhl": ("dhl.com",),
     "ups": ("ups.com",),
-    "canadapost": ("canadapost-postescanada.ca",),
+    "canadapost": ("canadapost.ca", "canadapost-postescanada.ca"),
     "cra": ("canada.ca",),
     "chase": ("chase.com",),
     "wellsfargo": ("wellsfargo.com",),
@@ -39,6 +39,10 @@ SUSPICIOUS_TLDS = {
     "zip", "mov", "top", "xyz", "icu", "click", "link", "cam", "rest", "buzz",
     "gq", "tk", "ml", "cf", "ga", "work", "support", "loan", "country",
 }
+
+# Web-infrastructure domains that appear in HTML boilerplate (DOCTYPEs,
+# xmlns declarations, font CDNs) — never meaningful phishing indicators.
+INFRA_DOMAINS = {"w3.org", "schema.org", "googleapis.com", "gstatic.com"}
 
 SHORTENERS = {
     "bit.ly", "tinyurl.com", "t.co", "goo.gl", "is.gd", "ow.ly", "buff.ly",
@@ -137,8 +141,17 @@ class _HrefParser(HTMLParser):
             self._href = None
 
 
+def _is_infra(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return _registered_domain(host) in INFRA_DOMAINS
+
+
 def extract_urls(body_text: str, body_html: str) -> list[tuple[str, str]]:
-    """Return deduped (url, anchor_text) pairs from both bodies."""
+    """Return deduped (url, anchor_text) pairs from both bodies.
+
+    DOCTYPE/xmlns/font-CDN boilerplate (w3.org etc.) is dropped — it appears
+    in virtually every HTML email and carries no signal.
+    """
     seen: dict[str, str] = {}
     for match in URL_RE.findall(body_text or ""):
         url = refang(match.rstrip(".,;"))
@@ -154,7 +167,7 @@ def extract_urls(body_text: str, body_html: str) -> list[tuple[str, str]]:
                 seen[refang(href)] = text
         for match in URL_RE.findall(body_html):
             seen.setdefault(refang(match.rstrip(".,;")), "")
-    return list(seen.items())
+    return [(u, t) for u, t in seen.items() if not _is_infra(u)]
 
 
 def analyze_url(url: str, anchor_text: str = "") -> UrlInfo:

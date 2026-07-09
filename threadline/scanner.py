@@ -13,15 +13,26 @@ _SEV_ORDER = {BAD: 0, WARN: 1, OK: 2, INFO: 3}
 
 
 def _url_findings(urls: list[UrlInfo]) -> list[Finding]:
-    findings: list[Finding] = []
+    # Aggregate per registered domain — a newsletter with 30 links to one
+    # bad domain is one finding, not 30 findings' worth of score.
+    by_domain: dict[str, list[UrlInfo]] = {}
     for u in urls:
-        if not u.flags:
-            continue
-        severity = BAD if any("impersonates" in f or "@" in f for f in u.flags) else WARN
+        if u.flags:
+            by_domain.setdefault(u.domain or u.url, []).append(u)
+
+    findings: list[Finding] = []
+    remaining_weight = 40  # cap the url category's total score contribution
+    for domain, flagged in by_domain.items():
+        flags = list(dict.fromkeys(f for u in flagged for f in u.flags))
+        severity = BAD if any("impersonates" in f or "@" in f for f in flags) else WARN
+        weight = min(20 if severity == BAD else 10, remaining_weight)
+        remaining_weight -= weight
+        count = f" ({len(flagged)} links to this domain)" if len(flagged) > 1 else ""
         findings.append(Finding(
-            severity, f"Suspicious link — {u.domain or u.url}",
-            f"{u.defanged}: " + "; ".join(u.flags) + ".",
-            weight=20 if severity == BAD else 10, category="url"))
+            severity, f"Suspicious link — {domain}",
+            f"{flagged[0].defanged}{count}: " + "; ".join(flags) + ".",
+            weight=weight, category="url"))
+
     if urls and not findings:
         findings.append(Finding(OK, "Link heuristics clean",
                                 f"{len(urls)} link(s) extracted; no typosquatting, "
@@ -84,14 +95,17 @@ def _build_chain(email: ParsedEmail, urls: list[UrlInfo],
                        if email.spf == "pass" else "unverified",
                        BAD if sender_bad else OK if email.spf == "pass" else INFO)]
 
-    auth_failed = any(f.category == "auth" and f.severity in (BAD, WARN)
-                      and "authentication" in f.title.lower() for f in findings)
-    failed_mechs = "/".join(m.upper() for m, r in
-                            (("spf", email.spf), ("dkim", email.dkim))
-                            if r in ("fail", "softfail")) or "SPF/DKIM"
-    chain.append(ChainNode("Auth Check",
-                           f"{failed_mechs} fail" if auth_failed else "pass",
-                           BAD if auth_failed else OK))
+    failed_mechs = [m.upper() for m, r in
+                    (("spf", email.spf), ("dkim", email.dkim),
+                     ("dmarc", email.dmarc))
+                    if r in ("fail", "softfail", "permerror")]
+    if not failed_mechs:
+        chain.append(ChainNode("Auth Check", "pass", OK))
+    elif email.forwarded or email.auth_earlier_pass:
+        chain.append(ChainNode("Auth Check", "fail (forwarded)", INFO))
+    else:
+        chain.append(ChainNode("Auth Check",
+                               f"{'/'.join(failed_mechs[:2])} fail", BAD))
 
     if urls:
         worst = min(urls, key=lambda u: 0 if u.flags else 1)
@@ -104,8 +118,9 @@ def _build_chain(email: ParsedEmail, urls: list[UrlInfo],
         sub = (path + ("?" + query if query else ""))[:22] or worst.domain
         chain.append(ChainNode("Embedded Link", sub, link_sev))
         chain.append(ChainNode("Redirect", "not traced", INFO))
+        # We never visit links, so the landing page is inferred, not observed.
         chain.append(ChainNode("Landing Page",
-                               "credential form" if link_sev == BAD else "unknown",
+                               "suspected phish" if link_sev == BAD else "not visited",
                                link_sev if link_sev == BAD else INFO))
     elif email.attachments:
         att_sev = BAD if by_cat("attachment", BAD) else \
