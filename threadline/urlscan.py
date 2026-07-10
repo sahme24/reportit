@@ -141,8 +141,19 @@ class _HrefParser(HTMLParser):
             self._href = None
 
 
+def _safe_urlparse(url: str):
+    """urlparse that never raises — malformed input (stray '[', bad IPv6)
+    comes straight from untrusted message bodies."""
+    try:
+        parsed = urlparse(url)
+        parsed.hostname  # .hostname can also raise on bad netlocs
+        return parsed
+    except ValueError:
+        return urlparse("")
+
+
 def _is_infra(url: str) -> bool:
-    host = (urlparse(url).hostname or "").lower()
+    host = (_safe_urlparse(url).hostname or "").lower()
     return _registered_domain(host) in INFRA_DOMAINS
 
 
@@ -171,7 +182,7 @@ def extract_urls(body_text: str, body_html: str) -> list[tuple[str, str]]:
 
 
 def analyze_url(url: str, anchor_text: str = "") -> UrlInfo:
-    parsed = urlparse(url)
+    parsed = _safe_urlparse(url)
     host = (parsed.hostname or "").lower()
     domain = _registered_domain(host)
     flags: list[str] = []
@@ -222,7 +233,8 @@ def analyze_url(url: str, anchor_text: str = "") -> UrlInfo:
     if anchor_text:
         m = URL_RE.search(anchor_text)
         if m:
-            shown = _registered_domain((urlparse(refang(m.group(0))).hostname or "").lower())
+            shown = _registered_domain(
+                (_safe_urlparse(refang(m.group(0))).hostname or "").lower())
             if shown and shown != domain:
                 flags.append(f"link text shows {shown} but points to {domain}")
 

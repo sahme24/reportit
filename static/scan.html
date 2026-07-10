@@ -141,13 +141,14 @@
     <div class="panel lift" id="aiPanel" style="margin-bottom:20px;display:none;">
       <div class="panel-head">
         <span class="panel-title">🛡️ AI Analyst</span>
-        <span class="chip" style="background:var(--primary-wash);color:var(--primary);">POWERED BY CLAUDE</span>
+        <span class="chip" id="aiQuota" style="background:var(--primary-wash);color:var(--primary);"></span>
       </div>
       <div class="panel-body">
         <div id="aiIntro" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <span style="color:var(--dim);font-size:14px;flex:1;min-width:220px;">
-            Get a plain-English explanation of this verdict and what to do next.
-            The analyst only sees the scan results — links stay defanged.
+            Get an independent second opinion in plain English — the analyst
+            forms its own verdict from the evidence and only sees the scan
+            results (links stay defanged).
           </span>
           <button class="btn primary" id="aiBtn">Explain this case →</button>
         </div>
@@ -199,8 +200,12 @@ ReportIT.topbar("/scan").then(user => {
   if (!user) location.href = "/login?next=/scan";
 });
 
-let aiEnabled = false;
-fetch("/api/config").then(r => r.json()).then(cfg => { aiEnabled = cfg.ai; });
+let aiEnabled = false, aiLimit = 3;
+fetch("/api/config").then(r => r.json()).then(cfg => {
+  aiEnabled = cfg.ai;
+  aiLimit = cfg.ai_daily_limit || 3;
+  $("aiQuota").textContent = `${aiLimit} FREE ANALYSES / DAY`;
+});
 
 async function loadSample(name){
   const r = await fetch(`/api/sample/${name}`);
@@ -367,6 +372,8 @@ $("aiBtn").onclick = async () => {
         <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">The analyst recommends:</div>
         <ol class="advice">${data.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
     box.style.display = "block";
+    if (typeof data.uses_left === "number")
+      $("aiQuota").textContent = `${data.uses_left} OF ${aiLimit} LEFT TODAY`;
   } catch (e) {
     $("aiError").textContent = e.message;
     btn.disabled = false; btn.textContent = "Explain this case →";

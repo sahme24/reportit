@@ -95,7 +95,8 @@ def _lure_findings(text: str, urls) -> list[Finding]:
             continue
         display = brand.upper() if len(brand) <= 4 else brand.title()
         if link_domains and not any(
-                d == l or d.endswith("." + l) for d in link_domains for l in legit):
+                d == real or d.endswith("." + real)
+                for d in link_domains for real in legit):
             findings.append(Finding(
                 BAD, f'Brand lure — "{display}"',
                 f"The message invokes {display} but links to "
@@ -121,8 +122,8 @@ def _lure_findings(text: str, urls) -> list[Finding]:
 
 
 def _build_chain(sender: str, urls, findings) -> list[ChainNode]:
-    by_cat = lambda cat, sev: any(
-        f.category == cat and f.severity == sev for f in findings)
+    def by_cat(cat: str, sev: str) -> bool:
+        return any(f.category == cat and f.severity == sev for f in findings)
 
     sender_sev = WARN if by_cat("sender", WARN) else INFO
     sender_sub = "gateway/number" if sender_sev == WARN else (sender[:16] or "unknown")

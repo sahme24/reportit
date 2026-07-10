@@ -216,10 +216,15 @@ def api_sample(name: str) -> PlainTextResponse:
 # Stats
 # --------------------------------------------------------------------------
 
+# Free AI analyses per user per UTC day (keeps API costs predictable).
+_AI_DAILY_LIMIT = int(os.environ.get("REPORTIT_AI_DAILY_LIMIT", "3"))
+
+
 @app.get("/api/config")
 def api_config() -> dict:
     """What optional integrations are configured on this instance."""
-    return {"google": _google_configured(), "ai": ai.is_configured()}
+    return {"google": _google_configured(), "ai": ai.is_configured(),
+            "ai_daily_limit": _AI_DAILY_LIMIT}
 
 
 class ExplainRequest(BaseModel):
@@ -233,8 +238,18 @@ def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict
             status_code=503,
             detail="The AI analyst isn't configured on this server — add an "
                    "ANTHROPIC_API_KEY to .env to enable it.")
+    used = db.ai_uses_today(user["id"])
+    if used >= _AI_DAILY_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"You've used all {_AI_DAILY_LIMIT} AI analyses for today — "
+                   "the limit resets at midnight UTC. The scan findings and "
+                   "recommendations above don't count against it.")
     try:
-        return ai.analyze_case(req.case)
+        result = ai.analyze_case(req.case)
+        db.record_ai_use(user["id"])
+        result["uses_left"] = _AI_DAILY_LIMIT - used - 1
+        return result
     except anthropic.RateLimitError:
         raise HTTPException(status_code=429,
                             detail="The AI analyst is busy — try again in a "

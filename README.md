@@ -1,5 +1,7 @@
 # 🛡️ ReportIT.ai
 
+[![CI/CD](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml/badge.svg)](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml)
+
 **Open-source phishing investigation for everyone.**
 
 Ever gotten a phishing email? Everyone has. ReportIT.ai reads it the way a
@@ -84,13 +86,18 @@ email address (they keep their history and admin flag).
 ## AI analyst (optional)
 
 With an [Anthropic API key](https://platform.claude.com) in `.env`, every
-scan gets an **"Explain this case"** button — Claude turns the findings into
-a plain-English explanation plus what-to-do-next steps. The analyst only
-sees the scan results (links defanged); it never visits anything.
+scan gets an **"Explain this case"** button — an independent AI second
+opinion (its own verdict + agreement flag vs. the heuristic scanner) plus a
+plain-English explanation and what-to-do-next steps. The analyst only sees
+the scan results (links defanged); it never visits anything.
+
+Costs stay predictable: the default model is Claude Haiku (the cheapest
+tier) and each user gets **3 analyses per day** (resets midnight UTC).
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
-# REPORTIT_AI_MODEL=claude-opus-4-8   # default
+# REPORTIT_AI_MODEL=claude-haiku-4-5   # default
+# REPORTIT_AI_DAILY_LIMIT=3            # per user per day
 ```
 
 ## What gets checked
@@ -157,6 +164,30 @@ samples/            sanitized test emails (one phish, one clean)
 - [ ] Safe redirect-chain tracing
 - [ ] Rate limiting & email verification for public instances
 - [ ] Browser extension / "forward to scan" address
+
+## CI/CD
+
+Every push and pull request runs the pipeline in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+1. **Lint** — `ruff check .`
+2. **Test** — `pytest` (engine regression tests + API smoke tests, all
+   offline: verdicts on the sample phish/clean/smish, typosquat detection,
+   defanged reports, auth enforcement, and the AI daily limit)
+3. **Deploy** — on pushes to the default branch, a Docker image is built and
+   published to GitHub Container Registry as
+   `ghcr.io/<you>/reportit:latest` (+ a per-commit SHA tag)
+
+Run the same checks locally:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check . && pytest
+
+# and the production container:
+docker build -t reportit .
+docker run -p 8000:8000 -v reportit-data:/data --env-file .env reportit
+```
 
 ## Contributing
 

@@ -11,9 +11,9 @@ import os
 
 import anthropic
 
-# Claude Opus 4.8 by default; override with REPORTIT_AI_MODEL if you want a
-# cheaper model on a busy public instance.
-_MODEL = os.environ.get("REPORTIT_AI_MODEL", "claude-opus-4-8")
+# Claude Haiku 4.5 by default — fast and cheap enough for a free public
+# instance. Override with REPORTIT_AI_MODEL to use a bigger model.
+_MODEL = os.environ.get("REPORTIT_AI_MODEL", "claude-haiku-4-5")
 
 _SYSTEM = """You are the AI analyst inside ReportIT.ai, an open-source phishing
 and smishing investigation tool for everyday people. You receive the results
@@ -90,12 +90,12 @@ def analyze_case(case: dict) -> dict:
     {verdict, confidence, agrees_with_scanner, summary, actions}.
     Raises on API errors — the web layer maps those to friendly responses."""
     client = anthropic.Anthropic()
+    # No thinking/effort params: Haiku 4.5 doesn't support them, and omitting
+    # them keeps the call valid if REPORTIT_AI_MODEL is overridden upward.
     response = client.messages.create(
         model=_MODEL,
         max_tokens=2048,
-        thinking={"type": "adaptive"},
         output_config={
-            "effort": "low",
             "format": {"type": "json_schema", "schema": _SCHEMA},
         },
         system=_SYSTEM,

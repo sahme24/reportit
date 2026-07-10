@@ -23,8 +23,8 @@ def markdown_report(case: Case) -> str:
         lines += [
             "## Message (SMS)",
             "",
-            f"| | |",
-            f"|---|---|",
+            "| | |",
+            "|---|---|",
             f"| Sender | `{case.headers['from']}` |",
             f"| Text | {case.body_preview[:300]} |",
         ]
@@ -32,8 +32,8 @@ def markdown_report(case: Case) -> str:
         lines += [
             "## Message",
             "",
-            f"| | |",
-            f"|---|---|",
+            "| | |",
+            "|---|---|",
             f"| From | `{case.headers['from']}` |",
             f"| Reply-To | `{case.headers['reply_to'] or '—'}` |",
             f"| Subject | {case.headers['subject']} |",
@@ -42,8 +42,8 @@ def markdown_report(case: Case) -> str:
             "",
             "## Authentication",
             "",
-            f"| Mechanism | Result |",
-            f"|---|---|",
+            "| Mechanism | Result |",
+            "|---|---|",
             f"| SPF | {case.auth['spf']} |",
             f"| DKIM | {case.auth['dkim']} |",
             f"| DMARC | {case.auth['dmarc']} |",

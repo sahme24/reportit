@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS scans (
 CREATE INDEX IF NOT EXISTS idx_scans_user ON scans(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_scans_sender ON scans(from_addr);
 CREATE INDEX IF NOT EXISTS idx_scans_domain ON scans(top_domain);
+CREATE TABLE IF NOT EXISTS ai_uses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_uses_user ON ai_uses(user_id, created_at);
 """
 
 
@@ -174,6 +180,21 @@ def prior_sightings(from_addr: str, domain: str) -> dict:
             "SELECT COUNT(*) c FROM scans WHERE top_domain = ? AND top_domain != ''",
             (domain,)).fetchone()["c"] if domain else 0
     return {"sender": sender, "domain": dom}
+
+
+def ai_uses_today(user_id: int) -> int:
+    """AI-analyst calls this user has made since midnight UTC."""
+    midnight = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00")
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT COUNT(*) c FROM ai_uses WHERE user_id = ? AND created_at >= ?",
+            (user_id, midnight)).fetchone()["c"]
+
+
+def record_ai_use(user_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("INSERT INTO ai_uses (user_id, created_at) VALUES (?, ?)",
+                     (user_id, _now()))
 
 
 def user_scans(user_id: int, limit: int = 50) -> list[dict]:

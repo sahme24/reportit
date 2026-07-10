@@ -87,8 +87,8 @@ def _verdict(score: int) -> tuple[str, str]:
 
 def _build_chain(email: ParsedEmail, urls: list[UrlInfo],
                  findings: list[Finding]) -> list[ChainNode]:
-    by_cat = lambda cat, sev: any(
-        f.category == cat and f.severity == sev for f in findings)
+    def by_cat(cat: str, sev: str) -> bool:
+        return any(f.category == cat and f.severity == sev for f in findings)
 
     sender_bad = by_cat("domain", BAD) or by_cat("domain", WARN)
     chain = [ChainNode("Sender",
@@ -113,9 +113,10 @@ def _build_chain(email: ParsedEmail, urls: list[UrlInfo],
         link_sev = WARN if worst.flags else OK
         if by_cat("url", BAD) or by_cat("reputation", BAD):
             link_sev = BAD
-        from urllib.parse import urlparse
-        path = urlparse(worst.url).path.lstrip("/") or worst.domain
-        query = urlparse(worst.url).query
+        from .urlscan import _safe_urlparse
+        parsed = _safe_urlparse(worst.url)
+        path = parsed.path.lstrip("/") or worst.domain
+        query = parsed.query
         sub = (path + ("?" + query if query else ""))[:22] or worst.domain
         chain.append(ChainNode("Embedded Link", sub, link_sev))
         chain.append(ChainNode("Redirect", "not traced", INFO))
