@@ -352,3 +352,8 @@ def page_history() -> FileResponse:
 @app.get("/dashboard")
 def page_dashboard() -> FileResponse:
     return FileResponse(STATIC / "dashboard.html")
+
+
+@app.get("/admin")
+def page_admin() -> FileResponse:
+    return FileResponse(STATIC / "admin.html")

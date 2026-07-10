@@ -212,8 +212,72 @@ ruff check . && pytest
 
 # and the production container:
 docker build -t reportit .
-docker run -p 8000:8000 -v reportit-data:/data --env-file .env reportit
+docker run -p 8080:8080 -v reportit-data:/data --env-file .env reportit
 ```
+
+## Deploy to Google Cloud Run
+
+The Dockerfile is Cloud Run ready (it listens on `$PORT`, defaulting to
+8080). Cloud Run's free tier covers 2 million requests a month and scales
+to zero when idle, so a low-traffic instance costs nothing beyond an
+attached billing account.
+
+**Prerequisites:** the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install),
+signed in (`gcloud auth login`) with a project selected (`gcloud config set
+project YOUR_PROJECT_ID`).
+
+**1. One-time storage setup.** Cloud Run containers are stateless: local
+disk resets on every cold start and isn't shared across instances. Mount a
+Cloud Storage bucket at `/data` so `threadline.db` survives redeploys:
+
+```bash
+gcloud storage buckets create gs://YOUR_PROJECT_ID-reportit-data --location=us-central1
+```
+
+**2. Store secrets.** Don't pass API keys as plain env vars; put them in
+Secret Manager instead:
+
+```bash
+echo -n "YOUR_GOOGLE_CLIENT_ID" | gcloud secrets create reportit-google-client-id --data-file=-
+echo -n "YOUR_GOOGLE_CLIENT_SECRET" | gcloud secrets create reportit-google-client-secret --data-file=-
+echo -n "YOUR_ANTHROPIC_API_KEY" | gcloud secrets create reportit-anthropic-key --data-file=-
+```
+
+**3. Deploy.** `--source .` builds the Dockerfile with Cloud Build and
+deploys in one step, no separate registry setup needed:
+
+```bash
+gcloud run deploy reportit \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --min-instances=0 \
+  --max-instances=1 \
+  --add-volume=name=data,type=cloud-storage,bucket=YOUR_PROJECT_ID-reportit-data \
+  --add-volume-mount=volume=data,mount-path=/data \
+  --set-secrets=GOOGLE_CLIENT_ID=reportit-google-client-id:latest,GOOGLE_CLIENT_SECRET=reportit-google-client-secret:latest,ANTHROPIC_API_KEY=reportit-anthropic-key:latest
+```
+
+`--max-instances=1` matters here: SQLite handles one writer well but isn't
+built for multiple Cloud Run instances hitting the same file concurrently.
+For this project's traffic level that's the right tradeoff; if you outgrow
+it, the next step is a managed database rather than raising the instance
+cap.
+
+**4. Register the callback URL.** `gcloud run deploy` prints a service URL
+like `https://reportit-xxxxx-uc.a.run.app`. Add
+`https://reportit-xxxxx-uc.a.run.app/auth/google/callback` as an authorized
+redirect URI in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+(same OAuth client as local dev, one more entry in the list; see the
+Google sign-in section above for why both `localhost` and `127.0.0.1`
+variants matter for local testing). No code change is needed since
+`app.py` builds the callback URL from the incoming request's own host.
+
+**Redeploying:** re-run the same `gcloud run deploy` command, or wire it
+into the CI/CD pipeline once you're ready for continuous deployment (needs
+a GCP service account key or Workload Identity Federation stored as a
+GitHub secret, which is a manual setup step in your GCP project, not
+something this repo can provision on its own).
 
 ## Contributing (collaborators)
 

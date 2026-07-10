@@ -13,11 +13,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# The SQLite database lives here — mount a volume to persist it:
-#   docker run -p 8000:8000 -v reportit-data:/data --env-file .env reportit
+# The SQLite database lives here. For local docker run, mount a volume:
+#   docker run -p 8080:8080 -v reportit-data:/data --env-file .env reportit
+# For Cloud Run, mount a Cloud Storage bucket instead (see README's Deploy
+# section) so the database survives cold starts and redeploys.
 ENV THREADLINE_DB=/data/threadline.db
 RUN mkdir /data
 VOLUME /data
 
-EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8080
+# Cloud Run injects $PORT (defaults to 8080) and expects the container to
+# listen on it; the shell form lets that env var expand at start time.
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}

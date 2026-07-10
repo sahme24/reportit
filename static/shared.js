@@ -64,7 +64,8 @@ const ReportIT = {
       links = `
         ${link("/dashboard", "Dashboard")}
         ${link("/scan", "Scanner")}
-        ${link("/history", "Case History")}`;
+        ${link("/history", "Case History")}
+        ${user.is_admin ? link("/admin", "Admin") : ""}`;
       right = `
         <span class="welcome">Welcome, <b>${this.esc(user.name)}</b></span>
         <button class="btn outline pill" onclick="ReportIT.logout()">Sign out</button>`;
