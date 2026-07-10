@@ -1,4 +1,4 @@
-"""Threadline CLI — scan a raw email from a file or stdin."""
+"""Threadline CLI: scan a raw email from a file or stdin."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _c(name: str, text: str, enabled: bool) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="threadline",
-        description="Automated phishing investigation — parse, analyze, report.")
+        description="Automated phishing investigation: parse, analyze, report.")
     ap.add_argument("email", help="path to a raw email (.eml/.txt), or '-' for stdin")
     ap.add_argument("--sms", action="store_true",
                     help="treat the input as an SMS/text message instead of an email")
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
                      "LIKELY CLEAN": "ok"}[case.verdict]
         print()
         print(_c("bold", f"  REPORTIT.AI · CASE #{case.case_id}", color))
-        print(f"  {_c(sev_color, f'● {case.verdict} — {case.confidence} CONFIDENCE', color)}"
+        print(f"  {_c(sev_color, f'● {case.verdict} · {case.confidence} CONFIDENCE', color)}"
               f"  (score {case.score}/100)")
         print()
         if case.kind == "sms":

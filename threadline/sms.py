@@ -61,7 +61,7 @@ def _sender_findings(sender: str) -> list[Finding]:
     sender = sender.strip()
     if not sender:
         return [Finding(INFO, "Sender not provided",
-                        "No sender number was given — number heuristics skipped.",
+                        "No sender number was given, so number heuristics skipped.",
                         category="sender")]
     digits = "".join(_DIGITS_RE.findall(sender))
     if _EMAIL_SENDER_RE.match(sender):
@@ -79,7 +79,7 @@ def _sender_findings(sender: str) -> list[Finding]:
         return [Finding(WARN, "Full phone number, not a shortcode",
                         f"The text came from a regular number ({sender}). Banks, "
                         "carriers, and government agencies almost always use "
-                        "registered shortcodes — a 10-digit sender is a smishing "
+                        "registered shortcodes, so a 10-digit sender is a smishing "
                         "hallmark.", weight=10, category="sender")]
     return [Finding(INFO, "Unrecognized sender format", sender, category="sender")]
 
@@ -98,7 +98,7 @@ def _lure_findings(text: str, urls) -> list[Finding]:
                 d == real or d.endswith("." + real)
                 for d in link_domains for real in legit):
             findings.append(Finding(
-                BAD, f'Brand lure — "{display}"',
+                BAD, f'Brand lure: "{display}"',
                 f"The message invokes {display} but links to "
                 f"{', '.join(sorted(link_domains))} instead of {legit[0]}. "
                 "Impersonating a trusted brand while linking elsewhere is the "
@@ -116,7 +116,7 @@ def _lure_findings(text: str, urls) -> list[Finding]:
     if not urls and any(w in lowered for w in ("call", "reply", "text back")):
         findings.append(Finding(
             INFO, "Callback lure",
-            "No link, but the message asks you to call or reply — verify any "
+            "No link, but the message asks you to call or reply. Verify any "
             "number independently before responding.", category="content"))
     return findings
 
@@ -175,7 +175,7 @@ def scan_sms(text: str, sender: str = "", offline: bool = False,
     highlights = [p for p in SMS_URGENCY if p in lowered]
     highlights += [b for b in LURE_BRANDS
                    if re.search(rf"\b{re.escape(b)}\b", lowered)]
-    # A brand lure makes the link itself the payload — mark every link then.
+    # A brand lure makes the link itself the payload, so mark every link then.
     lure_fired = any(f.category == "domain" and f.severity == BAD
                      for f in findings)
     highlights += [u.url for u in urls if u.flags or lure_fired]

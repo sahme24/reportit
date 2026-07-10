@@ -1,4 +1,4 @@
-"""OCR for image-based phishing — reads the text hidden inside images.
+"""OCR for image-based phishing: reads the text hidden inside images.
 
 Scammers put the entire lure (text + URL) in an image so text-based filters
 see nothing. This module extracts that text so the normal URL/urgency
@@ -6,7 +6,7 @@ checks can run on it.
 
 Optional capability: requires the Tesseract binary on the system
 (`apt install tesseract-ocr`, `choco install tesseract`, or
-`brew install tesseract`). Everything fails soft when it's missing —
+`brew install tesseract`). Everything fails soft when it's missing, so
 scans still work, images just aren't read.
 """
 
@@ -30,7 +30,7 @@ def is_available() -> bool:
 
 
 def extract_text(image_bytes: bytes) -> str:
-    """Best-effort OCR. Returns "" on any failure — never raises."""
+    """Best-effort OCR. Returns "" on any failure, never raises."""
     if not is_available():
         return ""
     try:

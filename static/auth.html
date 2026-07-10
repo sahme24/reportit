@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sign in — ReportIT.ai</title>
+<title>ReportIT.ai</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
@@ -63,7 +64,7 @@
         </a>
         <div class="auth-note">
           <b>Why Google only?</b> No passwords for us to store means no
-          passwords to leak — for a security tool, that matters. We receive
+          passwords to leak, and for a security tool, that matters. We receive
           only your name and email (to keep your case history yours), never
           your Google password.
         </div>
@@ -78,9 +79,9 @@ ReportIT.topbar("/login").then(user => { if (user) location.href = "/scan"; });
 
 const ERRORS = {
   not_configured: "",
-  state: "Sign-in session expired — please try again.",
-  google: "Google didn't complete the sign-in — please try again.",
-  verify: "Couldn't verify your Google account — please try again.",
+  state: "Sign-in session expired, please try again.",
+  google: "Google didn't complete the sign-in, please try again.",
+  verify: "Couldn't verify your Google account, please try again.",
 };
 const err = new URLSearchParams(location.search).get("error");
 if (err && ERRORS[err]) document.getElementById("error").textContent = ERRORS[err];

@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard — ReportIT.ai</title>
+<title>ReportIT.ai</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
@@ -71,7 +72,7 @@
     </div>
 
     <div class="panel" style="margin-bottom:20px;">
-      <div class="panel-head"><span class="panel-title">Community impact — all of ReportIT.ai</span></div>
+      <div class="panel-head"><span class="panel-title">Community impact across ReportIT.ai</span></div>
       <div class="verdict-split">
         <span class="split-item">🔍 Messages investigated <b id="iScans">—</b></span>
         <span class="split-item">🛡️ Threats detected <b id="iThreats">—</b></span>
@@ -90,7 +91,7 @@
           <tbody id="uRows"></tbody>
         </table>
         <div id="uEmpty" style="display:none;padding:36px;text-align:center;color:var(--faint);">
-          No cases yet — <a href="/scan">scan your first message →</a>
+          No cases yet. <a href="/scan">Scan your first message →</a>
         </div>
       </div>
     </div>
@@ -121,11 +122,11 @@
 
   <div class="charts">
     <div class="panel">
-      <div class="panel-head"><span class="panel-title">Scans per day — last 14 days</span></div>
+      <div class="panel-head"><span class="panel-title">Scans per day (last 14 days)</span></div>
       <div class="chart-body"><svg class="chart-svg" id="scanChart"></svg></div>
     </div>
     <div class="panel">
-      <div class="panel-head"><span class="panel-title">Signups per day — last 14 days</span></div>
+      <div class="panel-head"><span class="panel-title">Signups per day (last 14 days)</span></div>
       <div class="chart-body"><svg class="chart-svg" id="signupChart"></svg></div>
     </div>
   </div>
@@ -198,11 +199,11 @@ function barChart(svgEl, days, color){
     const label = s.day.slice(5).replace("-", "/");
     if (s.c > 0) {
       const r = Math.min(4, barW / 2, h);
-      svg += `<path class="bar" data-tip="${label} — ${s.c} scan${s.c === 1 ? "" : "s"}"
+      svg += `<path class="bar" data-tip="${label} · ${s.c} scan${s.c === 1 ? "" : "s"}"
         d="M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + barW - r}
            Q${x + barW},${y} ${x + barW},${y + r} V${y + h} Z" fill="${color}"/>`;
     }
-    svg += `<rect class="bar" data-tip="${label} — ${s.c}" x="${padL + i * step}" y="${padT}"
+    svg += `<rect class="bar" data-tip="${label} · ${s.c}" x="${padL + i * step}" y="${padT}"
              width="${step}" height="${plotH}" fill="transparent"/>`;
     if (i % 3 === 0) {
       svg += `<text class="axis-label" x="${x + barW / 2}" y="${H - 6}" text-anchor="middle">${label}</text>`;

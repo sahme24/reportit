@@ -41,7 +41,7 @@ SUSPICIOUS_TLDS = {
 }
 
 # Web-infrastructure domains that appear in HTML boilerplate (DOCTYPEs,
-# xmlns declarations, font CDNs) — never meaningful phishing indicators.
+# xmlns declarations, font CDNs). Never meaningful phishing indicators.
 INFRA_DOMAINS = {"w3.org", "schema.org", "googleapis.com", "gstatic.com"}
 
 SHORTENERS = {
@@ -101,7 +101,7 @@ def _deglyph(s: str) -> str:
 
 def _levenshtein(a: str, b: str) -> int:
     if abs(len(a) - len(b)) > 2:
-        return 3  # early out — we only care about distance <= 2
+        return 3  # early out, we only care about distance <= 2
     prev = list(range(len(b) + 1))
     for i, ca in enumerate(a, 1):
         cur = [i]
@@ -112,7 +112,7 @@ def _levenshtein(a: str, b: str) -> int:
 
 
 def _registered_domain(host: str) -> str:
-    """Crude eTLD+1 — good enough without a public-suffix dependency."""
+    """Crude eTLD+1, good enough without a public-suffix dependency."""
     parts = host.split(".")
     if len(parts) >= 3 and parts[-2] in ("co", "com", "net", "org", "gc", "gov", "ac"):
         return ".".join(parts[-3:])
@@ -142,7 +142,7 @@ class _HrefParser(HTMLParser):
 
 
 def _safe_urlparse(url: str):
-    """urlparse that never raises — malformed input (stray '[', bad IPv6)
+    """urlparse that never raises. Malformed input (stray '[', bad IPv6)
     comes straight from untrusted message bodies."""
     try:
         parsed = urlparse(url)
@@ -160,7 +160,7 @@ def _is_infra(url: str) -> bool:
 def extract_urls(body_text: str, body_html: str) -> list[tuple[str, str]]:
     """Return deduped (url, anchor_text) pairs from both bodies.
 
-    DOCTYPE/xmlns/font-CDN boilerplate (w3.org etc.) is dropped — it appears
+    DOCTYPE/xmlns/font-CDN boilerplate (w3.org etc.) is dropped. It appears
     in virtually every HTML email and carries no signal.
     """
     seen: dict[str, str] = {}
@@ -196,11 +196,11 @@ def analyze_url(url: str, anchor_text: str = "") -> UrlInfo:
 
     # Punycode / IDN
     if host.startswith("xn--") or ".xn--" in host:
-        flags.append("punycode (internationalized) hostname — possible homoglyph attack")
+        flags.append("punycode (internationalized) hostname, possible homoglyph attack")
 
     # Credentials-in-URL trick (https://paypal.com@evil.com/)
     if "@" in url.split("://", 1)[-1].split("/", 1)[0]:
-        flags.append("contains userinfo '@' — real destination hidden after the @")
+        flags.append("contains userinfo '@', real destination hidden after the @")
 
     # Suspicious TLD
     tld = host.rsplit(".", 1)[-1]
@@ -209,7 +209,7 @@ def analyze_url(url: str, anchor_text: str = "") -> UrlInfo:
 
     # Shortener
     if domain in SHORTENERS:
-        flags.append("URL shortener — final destination hidden")
+        flags.append("URL shortener, final destination hidden")
 
     # Excessive subdomain nesting
     if host.count(".") >= 4:
@@ -226,7 +226,7 @@ def analyze_url(url: str, anchor_text: str = "") -> UrlInfo:
         brand, legit, substituted = match_result
         note = f'impersonates "{brand}" ({legit} is the real domain)'
         if substituted:
-            note += " — uses character substitution"
+            note += ", uses character substitution"
         flags.append(note)
 
     # Anchor text says one domain, href goes to another

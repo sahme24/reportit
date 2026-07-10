@@ -15,7 +15,7 @@ _SEV_ORDER = {BAD: 0, WARN: 1, OK: 2, INFO: 3}
 
 
 def _url_findings(urls: list[UrlInfo]) -> list[Finding]:
-    # Aggregate per registered domain — a newsletter with 30 links to one
+    # Aggregate per registered domain, so a newsletter with 30 links to one
     # bad domain is one finding, not 30 findings' worth of score.
     by_domain: dict[str, list[UrlInfo]] = {}
     for u in urls:
@@ -31,7 +31,7 @@ def _url_findings(urls: list[UrlInfo]) -> list[Finding]:
         remaining_weight -= weight
         count = f" ({len(flagged)} links to this domain)" if len(flagged) > 1 else ""
         findings.append(Finding(
-            severity, f"Suspicious link — {domain}",
+            severity, f"Suspicious link: {domain}",
             f"{flagged[0].defanged}{count}: " + "; ".join(flags) + ".",
             weight=weight, category="url"))
 
@@ -59,7 +59,7 @@ def _image_findings(email: ParsedEmail) -> tuple[list[Finding], list[UrlInfo]]:
         findings.append(Finding(
             INFO, "Image text not checked",
             f"{len(email.images)} image(s) present, but Tesseract OCR isn't "
-            "installed on this server — text inside images wasn't analyzed.",
+            "installed on this server, so text inside images wasn't analyzed.",
             category="image"))
         return findings, urls
 
@@ -75,7 +75,7 @@ def _image_findings(email: ParsedEmail) -> tuple[list[Finding], list[UrlInfo]]:
                                   for u in found for flag in u.flags) else WARN
             findings.append(Finding(
                 severity, "Link hidden inside an image",
-                f"OCR read a URL out of {img['filename']} — putting the link "
+                f"OCR read a URL out of {img['filename']}. Putting the link "
                 "in a picture is a classic trick to slip past text-based "
                 "filters: " + "; ".join(u.defanged for u in found[:3]) + ".",
                 weight=25 if severity == BAD else 15, category="image"))

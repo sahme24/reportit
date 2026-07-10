@@ -13,8 +13,8 @@ const ReportIT = {
             fill="var(--primary)" opacity="0.15"/>
       <path d="M13 1.5 L23 5.5 V12 C23 18.5 18.8 23.2 13 24.5 C7.2 23.2 3 18.5 3 12 V5.5 Z"
             stroke="var(--primary)" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M8.5 12.5 L11.7 15.7 L17.5 9.5" stroke="var(--primary)" stroke-width="2.4"
-            stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="13" y="17.5" text-anchor="middle" font-family="Poppins, sans-serif"
+            font-weight="700" font-size="12" fill="var(--primary)">R</text>
     </svg>`,
 
   theme: {

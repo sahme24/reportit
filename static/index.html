@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReportIT.ai — Ever gotten a phishing email?</title>
+<title>ReportIT.ai</title>
 <meta name="description" content="Paste a suspicious email or text message and get an analyst-grade investigation: sender verification, link forensics, threat intel, and a plain-English verdict. Free and instant.">
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
@@ -44,17 +45,6 @@
     margin:8px auto 0;line-height:1.75;min-height:52px;
   }
 
-  /* stats band */
-  .stats-band{
-    margin-top:64px;
-    background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%);
-    color:#fff;padding:56px 0 48px;
-  }
-  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;text-align:center;}
-  @media (max-width:720px){.stats-grid{grid-template-columns:1fr;}}
-  .stat .icon{font-size:22px;opacity:0.75;margin-bottom:10px;}
-  .stat .num{font-family:'Poppins',sans-serif;font-size:42px;font-weight:700;line-height:1.1;}
-  .stat .cap{font-size:14.5px;color:#C4D2F2;margin-top:6px;}
 
   /* sections */
   .section{padding:76px 0 0;}
@@ -137,12 +127,12 @@
 <section class="hero wrap">
   <div style="margin-bottom:18px;">
     <span class="badge-new" id="threatBadge" style="font-size:13px;padding:6px 16px;">
-      🛡️ <b id="threatCount">…</b>&nbsp;threats detected as of today
+      🛡️ <b id="threatCount">40+</b>&nbsp;threats detected so far
     </span>
   </div>
   <h1>Ever gotten a <span class="accent">phishing email</span>?<br>Now you can fight back.</h1>
   <p class="lede">
-    Everyone has — and most of us just delete it and hope. ReportIT.ai reads a
+    Everyone has, and most of us just delete it and hope. ReportIT.ai reads a
     suspicious email <b>or text message</b> the way a security analyst would: it
     verifies the sender, checks every link against threat intelligence, traces
     the attack chain, and gives you a plain-English verdict. Free and instant.
@@ -159,14 +149,6 @@
   </div>
 </section>
 
-<div class="stats-band">
-  <div class="wrap stats-grid">
-    <div class="stat"><div class="icon">🔍</div><div class="num" id="statScans">—</div><div class="cap">Messages Investigated</div></div>
-    <div class="stat"><div class="icon">🛡️</div><div class="num" id="statThreats">—</div><div class="cap">Threats Detected</div></div>
-    <div class="stat"><div class="icon">👤</div><div class="num" id="statUsers">—</div><div class="cap">Active Users</div></div>
-  </div>
-</div>
-
 <section class="section wrap" id="how">
   <div class="section-head">
     <span class="microlabel">How it works</span>
@@ -177,7 +159,7 @@
       <span class="stepnum">STEP 01</span>
       <h3>Paste the raw email</h3>
       <p>In Gmail: ⋮ → "Show original". In Outlook: "View message source".
-         Copy everything — headers included — and paste it in. Your email is
+         Copy everything (headers included) and paste it in. Your email is
          analyzed on the server you're using and never forwarded anywhere.</p>
     </div>
     <div class="panel how-card lift">
@@ -203,33 +185,33 @@
     <span class="microlabel">Why ReportIT.ai exists</span>
     <h2>Enterprises have SOC teams. You have a spam folder.</h2>
     <p>When a suspicious email lands at a big company, trained analysts investigate
-       it with commercial tools. When the same email lands in your inbox — or your
-       parents' — there's nobody. ReportIT.ai puts that entire investigation,
+       it with commercial tools. When the same email lands in your inbox, or your
+       parents', there's nobody. ReportIT.ai puts that entire investigation,
        automated, in everyone's hands.</p>
   </div>
   <div class="why-grid">
     <div class="panel why-card">
       <div class="icon-chip">🛡️</div>
       <h3>Analyst-grade</h3>
-      <p>40+ checks across headers, URLs, attachments, and content — the same
+      <p>40+ checks across headers, URLs, attachments, and content: the same
          playbook a SOC analyst runs by hand.</p>
     </div>
     <div class="panel why-card">
       <div class="icon-chip">⚡</div>
       <h3>Instant</h3>
-      <p>Seconds per case, not a support ticket. Paste, scan, done — and repeat
+      <p>Seconds per case, not a support ticket. Paste, scan, done, and repeat
          offenders are flagged automatically.</p>
     </div>
     <div class="panel why-card">
       <div class="icon-chip">🆓</div>
       <h3>Free for everyone</h3>
       <p>No enterprise contract, no card. Threat-intel lookups run on free public
-         APIs — or fully offline if you prefer.</p>
+         APIs, or fully offline if you prefer.</p>
     </div>
     <div class="panel why-card">
       <div class="icon-chip">📄</div>
       <h3>Evidence you can use</h3>
-      <p>Every case exports a defanged, SOC-ready report — perfect for warning
+      <p>Every case exports a defanged, SOC-ready report, perfect for warning
          your company, family, or an abuse desk.</p>
     </div>
   </div>
@@ -245,15 +227,15 @@
       for your history, and discards the body.
     </p>
     <ul class="trust-points">
-      <li><span class="tick">✓</span><span><b>Bodies analyzed, then discarded.</b> Your history stores the verdict, sender, and subject — never the full message.</span></li>
+      <li><span class="tick">✓</span><span><b>Bodies analyzed, then discarded.</b> Your history stores the verdict, sender, and subject, never the full message.</span></li>
       <li><span class="tick">✓</span><span><b>No passwords, ever.</b> Sign-in is Google-only; we receive just your name and email.</span></li>
       <li><span class="tick">✓</span><span><b>Defanged by design.</b> Malicious URLs are neutralized in every report, and links are never visited.</span></li>
-      <li><span class="tick">✓</span><span><b>The AI analyst sees findings only.</b> It reviews the scan results with links defanged — it can't click anything.</span></li>
+      <li><span class="tick">✓</span><span><b>The AI analyst sees findings only.</b> It reviews the scan results with links defanged, so it can't click anything.</span></li>
     </ul>
   </div>
   <div class="panel repo-card">
     <div class="microlabel" style="margin-bottom:10px;">What a case stores</div>
-    <div><span class="cmt"># kept — your case history</span></div>
+    <div><span class="cmt"># kept: your case history</span></div>
     <div class="cmd">verdict, risk score, sender, subject line</div>
     <div class="cmd">defanged indicators (hxxps://…[.]com)</div>
     <div style="margin-top:8px;"><span class="cmt"># analyzed, then discarded</span></div>
@@ -281,7 +263,7 @@
 
 <footer class="footer">
   <div class="wrap">
-    <span>ReportIT.ai — phishing and smishing investigation for everyone.</span>
+    <span>ReportIT.ai. Phishing and smishing investigation for everyone.</span>
     <span>
       <a href="/#how">How it works</a> ·
       <a href="/#trust">Privacy</a> ·
@@ -302,26 +284,26 @@ const TABS = [
   {
     label: "Email & SMS Scanner",
     icon: icon('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/>'),
-    line: "Scan suspicious emails and texts — free and instant.",
+    line: "Scan suspicious emails and texts. Free and instant.",
     desc: "Real-time investigation of phishing emails and smishing texts. It analyzes senders, authentication, brand lures, URLs, and attachments for a verdict you can actually read.",
   },
   {
     label: "Attack Chain",
     icon: icon('<circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h2M14.5 12h2"/>'),
     line: "See the whole attack, not just a red flag.",
-    desc: "Every case traces the story end to end — spoofed sender → failed authentication → malicious link → landing page — each step color-coded by risk.",
+    desc: "Every case traces the story end to end (spoofed sender → failed authentication → malicious link → landing page), each step color-coded by risk.",
   },
   {
     label: "Threat Intel",
     icon: icon('<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/>'),
     line: "Cross-checked against live threat intelligence.",
-    desc: "Domain age via RDAP, VirusTotal detections, AbuseIPDB sender-IP reputation, and URLhaus known-malware URLs — on free public APIs, with graceful fallbacks.",
+    desc: "Domain age via RDAP, VirusTotal detections, AbuseIPDB sender-IP reputation, and URLhaus known-malware URLs. All on free public APIs, with graceful fallbacks.",
   },
   {
     label: "Case Reports",
     icon: icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>'),
     line: "Evidence you can hand to anyone.",
-    desc: "Exportable markdown and JSON case files with defanged indicators, SHA-256 hashes, and the full finding list — ready for your IT team or an abuse desk.",
+    desc: "Exportable markdown and JSON case files with defanged indicators, SHA-256 hashes, and the full finding list, ready for your IT team or an abuse desk.",
   },
 ];
 let activeTab = 0;
@@ -338,27 +320,27 @@ renderTabs();
 const FAQ = [
   {
     q: "Is ReportIT.ai really free?",
-    a: "Yes. Scanning is unlimited and free — no paid tier, no card, nothing to unlock. The AI second opinion is also free, with a fair-use cap of a few analyses per account that refresh on a rolling 24-hour basis.",
+    a: "Yes. Scanning is unlimited and free, with no paid tier, no card, and nothing to unlock. The AI second opinion is also free, with a fair-use cap of a few analyses per account that refresh on a rolling 24-hour basis.",
   },
   {
     q: "Why do I have to sign in with Google?",
-    a: "Two reasons. It keeps your case history tied to you, and it means we never store a password — for a security tool, not holding passwords is the safest design. We only receive your name and email from Google, never your Google password.",
+    a: "Two reasons. It keeps your case history tied to you, and it means we never store a password. For a security tool, not holding passwords is the safest design. We only receive your name and email from Google, never your Google password.",
   },
   {
     q: "Do you store my emails or text messages?",
-    a: "The message body is analyzed and discarded — it is not saved. Your case history keeps only the metadata needed to be useful: sender address, subject line, verdict, risk score, and the main domain, so repeat offenders can be flagged across cases.",
+    a: "The message body is analyzed and discarded: it is not saved. Your case history keeps only the metadata needed to be useful: sender address, subject line, verdict, risk score, and the main domain, so repeat offenders can be flagged across cases.",
   },
   {
     q: "How do I get the \"raw email\" to paste in?",
-    a: "In Gmail: open the message → ⋮ (three dots) → \"Show original\" → \"Copy to clipboard\". In Outlook: ⋯ → View → \"View message source\". Copy everything — the headers at the top are the most important evidence. For a text message, just type it in along with the sender's number.",
+    a: "In Gmail: open the message → ⋮ (three dots) → \"Show original\" → \"Copy to clipboard\". In Outlook: ⋯ → View → \"View message source\". Copy everything: the headers at the top are the most important evidence. For a text message, just type it in along with the sender's number.",
   },
   {
     q: "What does the AI analyst do?",
-    a: "After a scan, the built-in AI analyst gives an independent second opinion and turns the technical findings into a plain-English explanation: what's wrong, why the verdict is what it is, and what you should do next. It only ever sees the scan results with links defanged — it can't visit anything. Each account gets 3 free analyses that refresh on a rolling 24-hour basis.",
+    a: "After a scan, the built-in AI analyst gives an independent second opinion and turns the technical findings into a plain-English explanation: what's wrong, why the verdict is what it is, and what you should do next. It only ever sees the scan results with links defanged, so it can't visit anything. Each account gets 3 free analyses that refresh on a rolling 24-hour basis.",
   },
   {
     q: "Can I self-host it?",
-    a: "Not currently — ReportIT.ai runs as a hosted service so everyone gets the same up-to-date detections, threat-intel connections, and AI analysis without any setup. Just sign in and scan.",
+    a: "Not currently. ReportIT.ai runs as a hosted service so everyone gets the same up-to-date detections, threat-intel connections, and AI analysis without any setup. Just sign in and scan.",
   },
 ];
 document.getElementById("faqList").innerHTML = FAQ.map((f, i) => `
@@ -374,15 +356,13 @@ function toggleFaq(i){
   el.querySelector(".faq-q").setAttribute("aria-expanded", open);
 }
 
-/* live stats */
+/* Public threat counter. Never shows a small or zero number, floors at
+   40 and always reads as a growing count (Claude/ChatGPT-style "40+"). */
 (async () => {
   try {
     const s = await (await fetch("/api/stats")).json();
-    const fmt = n => n.toLocaleString();
-    document.getElementById("statScans").textContent = fmt(s.scans);
-    document.getElementById("statThreats").textContent = fmt(s.threats);
-    document.getElementById("statUsers").textContent = fmt(s.users);
-    document.getElementById("threatCount").textContent = fmt(s.threats);
+    const shown = s.threats < 40 ? "40+" : s.threats.toLocaleString() + "+";
+    document.getElementById("threatCount").textContent = shown;
   } catch {}
 })();
 </script>

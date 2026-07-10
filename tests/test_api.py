@@ -1,4 +1,4 @@
-"""API smoke tests — run against a temp database, no network calls."""
+"""API smoke tests, run against a temp database, no network calls."""
 
 import os
 import tempfile

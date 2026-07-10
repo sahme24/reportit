@@ -185,7 +185,7 @@ def prior_sightings(from_addr: str, domain: str) -> dict:
 def ai_usage(user_id: int) -> tuple[int, str | None]:
     """Rolling 24-hour AI quota (Claude/ChatGPT style).
 
-    Returns (uses_in_last_24h, refresh_at_iso) — refresh_at is when the
+    Returns (uses_in_last_24h, refresh_at_iso). refresh_at is when the
     OLDEST use in the window expires, i.e. when a slot frees up.
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()

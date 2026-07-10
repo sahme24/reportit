@@ -1,4 +1,4 @@
-"""Engine regression tests — all offline, no network, no API keys."""
+"""Engine regression tests, all offline, no network, no API keys."""
 
 from pathlib import Path
 
@@ -77,7 +77,7 @@ def test_malformed_urls_never_crash_the_scanner():
     body = ("Click https://evil[.]example[.]com/x and http://[::bad and "
             "https://reminder-craportal.com/refund")
     case = scan(f"From: a@b.com\nSubject: hi\n\n{body}".encode(), offline=True)
-    assert case.verdict  # any verdict — the point is it didn't 500
+    assert case.verdict  # any verdict is fine, the point is it didn't 500
     info = analyze_url("http://[::broken")
     assert info.flags == ["unparseable URL"]
 

@@ -1,4 +1,4 @@
-"""ReportIT.ai web app — landing, Google sign-in, scanner, history, dashboard.
+"""ReportIT.ai web app: landing, Google sign-in, scanner, history, dashboard.
 
 Run:  uvicorn app:app --reload
 Then open http://127.0.0.1:8000
@@ -160,7 +160,7 @@ class ScanRequest(BaseModel):
 
 
 def _sightings_finding(sender: str, urls) -> list[Finding]:
-    """Cross-reference this instance's scan history — roadmap v2 feature."""
+    """Cross-reference this instance's scan history (roadmap v2 feature)."""
     top_domain = next((u.domain for u in urls if u.domain), "")
     seen = db.prior_sightings(sender, top_domain)
     if not (seen["sender"] or seen["domain"]):
@@ -206,7 +206,7 @@ def _attach_ai_opinion(user_id: int, result: dict) -> None:
     result["report_markdown"] += (
         "\n## AI Analyst Second Opinion\n\n"
         f"**AI verdict:** {opinion['verdict']} ({opinion['confidence']} "
-        "confidence) — "
+        "confidence), and it "
         + ("agrees" if opinion["agrees_with_scanner"] else "**disagrees**")
         + " with the heuristic scanner.\n\n"
         + opinion["summary"] + "\n")
@@ -281,7 +281,7 @@ def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict
     if not ai.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="The AI analyst isn't configured on this server — add an "
+            detail="The AI analyst isn't configured on this server. Add an "
                    "ANTHROPIC_API_KEY to .env to enable it.")
     used, refresh_at = db.ai_usage(user["id"])
     if used >= _AI_DAILY_LIMIT:
@@ -300,14 +300,14 @@ def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict
         return result
     except anthropic.RateLimitError:
         raise HTTPException(status_code=429,
-                            detail="The AI analyst is busy — try again in a "
+                            detail="The AI analyst is busy. Try again in a "
                                    "minute.")
     except anthropic.APIStatusError as e:
         raise HTTPException(status_code=502,
                             detail=f"AI analyst error ({e.status_code}).")
     except anthropic.APIConnectionError:
         raise HTTPException(status_code=502,
-                            detail="Couldn't reach the AI analyst — check the "
+                            detail="Couldn't reach the AI analyst. Check the "
                                    "server's network connection.")
 
 

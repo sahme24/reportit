@@ -74,7 +74,7 @@ def _auth_results(msg: EmailMessage) -> dict[str, str]:
 
 def _earlier_hop_pass(msg: EmailMessage) -> bool:
     """True if ANY Authentication-Results header records SPF and DKIM both
-    passing — the signature of a message that authenticated fine at an
+    passing. That's the signature of a message that authenticated fine at an
     earlier hop and only 'failed' because it was forwarded afterwards."""
     for header in msg.get_all("Authentication-Results", []):
         hop = {m.lower(): r.lower() for m, r in _AUTH_RE.findall(header)}

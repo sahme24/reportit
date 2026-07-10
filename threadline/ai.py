@@ -1,4 +1,4 @@
-"""AI analyst — turns a finished case into a plain-English explanation.
+"""AI analyst: turns a finished case into a plain-English explanation.
 
 Uses the Claude API. Activates only when ANTHROPIC_API_KEY is configured
 (.env or environment); everything else in the scanner works without it.
@@ -11,7 +11,7 @@ import os
 
 import anthropic
 
-# Claude Haiku 4.5 by default — fast and cheap enough for a free public
+# Claude Haiku 4.5 by default, fast and cheap enough for a free public
 # instance. Override with REPORTIT_AI_MODEL to use a bigger model.
 _MODEL = os.environ.get("REPORTIT_AI_MODEL", "claude-haiku-4-5")
 
@@ -31,10 +31,13 @@ Rules:
 - Actions: 2-4 concrete steps for this specific case (delete it, report to
   reportphishing@apwg.org / forward texts to 7726, change a password ONLY via
   the official site typed by hand). No generic filler.
-- If the message is LIKELY CLEAN, say so plainly — do not invent danger.
+- If the message is LIKELY CLEAN, say so plainly. Do not invent danger.
+- Write like a person typing quickly, not a press release. Use commas,
+  periods, and colons for pacing. Never use an em dash (—) anywhere in your
+  response.
 - Summary: 80-160 words, short paragraphs, no markdown headers."""
 
-# Structured second opinion — the ensemble output the UI renders.
+# Structured second opinion: the ensemble output the UI renders.
 _SCHEMA = {
     "type": "object",
     "properties": {
@@ -88,7 +91,7 @@ def _case_brief(case: dict) -> str:
 def analyze_case(case: dict) -> dict:
     """Return the AI analyst's structured second opinion:
     {verdict, confidence, agrees_with_scanner, summary, actions}.
-    Raises on API errors — the web layer maps those to friendly responses."""
+    Raises on API errors; the web layer maps those to friendly responses."""
     client = anthropic.Anthropic()
     # No thinking/effort params: Haiku 4.5 doesn't support them, and omitting
     # them keeps the call valid if REPORTIT_AI_MODEL is overridden upward.

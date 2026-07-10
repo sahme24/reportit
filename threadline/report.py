@@ -1,4 +1,4 @@
-"""Markdown report generation — hand this to a SOC or an abuse desk."""
+"""Markdown report generation. Hand this to a SOC or an abuse desk."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ _SEV_MARK = {"bad": "🔴", "warn": "🟠", "ok": "🟢", "info": "⚪"}
 def markdown_report(case: Case) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
-        f"# ReportIT.ai Investigation Report — Case #{case.case_id}",
+        f"# ReportIT.ai Investigation Report: Case #{case.case_id}",
         "",
-        f"**Verdict:** {case.verdict} — {case.confidence} CONFIDENCE  ",
+        f"**Verdict:** {case.verdict} ({case.confidence} CONFIDENCE)  ",
         f"**Risk score:** {case.score}/100  ",
         f"**Generated:** {now}",
         "",
@@ -54,7 +54,7 @@ def markdown_report(case: Case) -> str:
         "",
     ]
     for f in case.findings:
-        lines.append(f"- {_SEV_MARK.get(f.severity, '•')} **{f.title}** — {f.detail}")
+        lines.append(f"- {_SEV_MARK.get(f.severity, '•')} **{f.title}:** {f.detail}")
 
     lines += ["", "## Attack Chain", ""]
     lines.append(" → ".join(f"**{n.label}** ({n.sub})" for n in case.chain))

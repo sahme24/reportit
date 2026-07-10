@@ -41,7 +41,7 @@ def auth_findings(email: ParsedEmail) -> list[Finding]:
                "the message carries Resent-/Forwarded headers")
         findings.append(Finding(INFO, "Authentication failed after forwarding",
                                 f"{' and '.join(failed)} fail at the final hop, but "
-                                f"{why} — this pattern matches a forwarded email, "
+                                f"{why}. This pattern matches a forwarded email, "
                                 "not sender spoofing. Judge the links and content "
                                 "on their own merits.", weight=5, category="auth"))
     elif len(failed) == 3:
@@ -83,7 +83,7 @@ def auth_findings(email: ParsedEmail) -> list[Finding]:
         hit = match_brand(_registered_domain(from_domain))
         if hit:
             brand, legit, substituted = hit
-            detail = (f'{email.from_addr} — the sender domain imitates '
+            detail = (f'{email.from_addr}: the sender domain imitates '
                       f'"{brand}" but is not {legit}.')
             if substituted:
                 detail += ' Uses character substitution (e.g. zero for "o").'

@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Email Scanner — ReportIT.ai</title>
+<title>ReportIT.ai</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
@@ -147,7 +148,7 @@
         <div id="aiIntro" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <span style="color:var(--dim);font-size:14px;flex:1;min-width:220px;">
             The AI second opinion runs automatically with each scan. If it
-            didn't load, ask again here — the analyst forms its own verdict
+            didn't load, ask again here. The analyst forms its own verdict
             from the evidence and only sees the scan results (links stay
             defanged).
           </span>
@@ -174,11 +175,11 @@ const $ = id => document.getElementById(id);
 const esc = ReportIT.esc;
 
 const PLACEHOLDERS = {
-  email: `Paste the raw email source here — full headers + body.
+  email: `Paste the raw email source here, full headers plus body.
 Gmail: open the message → ⋮ → Show original → Copy to clipboard.
 Outlook: ⋯ → View → View message source.`,
   sms: `Paste the text message here, exactly as you received it.
-Include the link if there is one — that's the most important evidence.`,
+Include the link if there is one, that's the most important evidence.`,
 };
 
 function setKind(k){
@@ -282,7 +283,7 @@ function render(c){
             : c.verdict === "SUSPICIOUS" ? "warn" : "ok";
   const v = $("verdict");
   v.className = `stamp ${sev}`;
-  v.textContent = `● ${c.verdict} — ${c.confidence} CONFIDENCE`;
+  v.textContent = `● ${c.verdict} · ${c.confidence} CONFIDENCE`;
   $("scoreLabel").textContent = `RISK ${c.score}/100`;
 
   const authLine = (label, result) => {
@@ -350,7 +351,7 @@ function render(c){
   }).join("");
 }
 
-/* "You're out of free analyses — more at 3:45 PM" (user's local time). */
+/* "You're out of free analyses, more at 3:45 PM" (user's local time). */
 function quotaMessage(refreshAt){
   let when = "in a bit";
   if (refreshAt) {
@@ -358,11 +359,11 @@ function quotaMessage(refreshAt){
     const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     when = d.toDateString() === new Date().toDateString() ? `at ${t}` : `at ${t} tomorrow`;
   }
-  return `You're out of free AI analyses — your next one unlocks ${when}. ` +
+  return `You're out of free AI analyses. Your next one unlocks ${when}. ` +
          "Scans, findings, and next steps stay unlimited.";
 }
 
-/* Render the AI second opinion — used both when it arrives with the scan
+/* Render the AI second opinion. Used both when it arrives with the scan
    (ensemble mode) and when the user clicks the button as a retry. */
 function showAiOpinion(data){
   $("aiIntro").style.display = "none";
@@ -371,10 +372,10 @@ function showAiOpinion(data){
               : data.verdict === "SUSPICIOUS" ? "warn" : "ok";
   const agree = data.agrees_with_scanner
     ? `<span style="font-size:13px;color:var(--teal);font-weight:600;">✓ concurs with the scanner</span>`
-    : `<span style="font-size:13px;color:var(--amber);font-weight:600;">⚠ disagrees with the scanner — read why below</span>`;
+    : `<span style="font-size:13px;color:var(--amber);font-weight:600;">⚠ disagrees with the scanner, read why below</span>`;
   box.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-      <span class="chip ${aiSev}">AI VERDICT: ${esc(data.verdict)} — ${esc(data.confidence)}</span>
+      <span class="chip ${aiSev}">AI VERDICT: ${esc(data.verdict)} · ${esc(data.confidence)}</span>
       ${agree}
     </div>
     <div style="white-space:pre-wrap;">${esc(data.summary)}</div>

@@ -7,7 +7,7 @@ environment variable is set:
     VT_API_KEY, ABUSEIPDB_API_KEY, URLHAUS_API_KEY
 
 Keys can also live in a .env file in the working directory.
-Every lookup fails soft — a dead API never breaks a scan.
+Every lookup fails soft, so a dead API never breaks a scan.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ _UA = {"User-Agent": "Threadline/0.1 (phishing investigation tool)"}
 
 
 def load_dotenv(path: str | Path = ".env") -> None:
-    """Minimal .env loader — KEY=VALUE lines, no dependency needed."""
+    """Minimal .env loader for KEY=VALUE lines, no dependency needed."""
     p = Path(path)
     if not p.is_file():
         return
@@ -38,7 +38,7 @@ def load_dotenv(path: str | Path = ".env") -> None:
 
 
 # --------------------------------------------------------------------------
-# RDAP — domain registration age (no key required)
+# RDAP: domain registration age (no key required)
 # --------------------------------------------------------------------------
 
 def domain_age_days(domain: str) -> int | None:
@@ -138,7 +138,7 @@ def reputation_findings(sender_ip: str, urls: list[UrlInfo],
                         offline: bool = False) -> list[Finding]:
     if offline:
         return [Finding(INFO, "Reputation checks skipped",
-                        "Running in offline mode — no external lookups performed.",
+                        "Running in offline mode. No external lookups performed.",
                         category="reputation")]
 
     load_dotenv()
