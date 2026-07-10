@@ -24,6 +24,11 @@
   .src-flag{color:var(--red);}
   .src-ok{color:var(--teal);}
   .src-block{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line-strong);}
+  mark.hl{background:var(--amber-wash);color:var(--amber);border-radius:3px;padding:0 3px;font-weight:600;}
+  .hl-hint{font-size:11.5px;color:var(--faint);margin-top:8px;}
+  ol.advice{margin:0;padding-left:20px;}
+  ol.advice li{margin:7px 0;font-size:14px;color:var(--dim);line-height:1.6;}
+  ol.advice li::marker{color:var(--primary);font-weight:700;}
 
   .finding{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);}
   .finding:last-child{border-bottom:none;padding-bottom:0;}
@@ -128,6 +133,11 @@
       <div class="chain-row" id="chain"></div>
     </div>
 
+    <div class="panel" id="advicePanel" style="margin-bottom:20px;">
+      <div class="panel-head"><span class="panel-title">✅ What You Should Do</span></div>
+      <div class="panel-body"><ol class="advice" id="adviceList"></ol></div>
+    </div>
+
     <div class="panel lift" id="aiPanel" style="margin-bottom:20px;display:none;">
       <div class="panel-head">
         <span class="panel-title">🛡️ AI Analyst</span>
@@ -141,7 +151,7 @@
           </span>
           <button class="btn primary" id="aiBtn">Explain this case →</button>
         </div>
-        <div id="aiSummary" style="display:none;font-size:14.5px;line-height:1.8;color:var(--ink);white-space:pre-wrap;"></div>
+        <div id="aiSummary" style="display:none;font-size:14.5px;line-height:1.8;color:var(--ink);"></div>
         <div class="form-error" id="aiError"></div>
       </div>
     </div>
@@ -229,6 +239,20 @@ $("analyze").onclick = async () => {
   }
 };
 
+/* Escape the preview, then wrap every scanner highlight (pressure phrases,
+   flagged links, brand lures) in a <mark> so the evidence is visible in place. */
+function highlightPreview(text, highlights){
+  let html = esc(text);
+  const uniq = [...new Set(highlights || [])].sort((a, b) => b.length - a.length);
+  for (const h of uniq){
+    const pattern = esc(h).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    html = html.replace(new RegExp(pattern, "gi"),
+                        m => "\u0001" + m + "\u0002");
+  }
+  return html.replaceAll("\u0001", '<mark class="hl">')
+             .replaceAll("\u0002", "</mark>");
+}
+
 function render(c){
   $("intake").classList.add("hidden");
   $("results").classList.remove("hidden");
@@ -257,7 +281,10 @@ function render(c){
     src = `
       <div class="src-line"><b>Channel:</b> Text message (SMS)</div>
       <div class="src-line"><b>Sender:</b> ${esc(c.headers.from)}</div>
-      <div class="src-block"><div class="src-line">${esc(c.body_preview)}</div></div>`;
+      <div class="src-block">
+        <div class="src-line">${highlightPreview(c.body_preview, c.highlights)}</div>
+        ${(c.highlights || []).length ? `<div class="hl-hint">Highlighted: pressure language, brand lures, and flagged links found by the scanner.</div>` : ""}
+      </div>`;
   } else {
     src = `
       <div class="src-line"><b>From:</b> ${esc(c.headers.from)}</div>
@@ -269,7 +296,10 @@ function render(c){
         ${authLine("DMARC", c.auth.dmarc)}
         ${c.auth.sender_ip ? `<div class="src-line"><b>Sender IP:</b> ${esc(c.auth.sender_ip)}</div>` : ""}
       </div>
-      <div class="src-block"><div class="src-line">${esc(c.body_preview)}</div></div>`;
+      <div class="src-block">
+        <div class="src-line">${highlightPreview(c.body_preview, c.highlights)}</div>
+        ${(c.highlights || []).length ? `<div class="hl-hint">Highlighted: pressure language, brand lures, and flagged links found by the scanner.</div>` : ""}
+      </div>`;
   }
   if (c.urls.length){
     src += `<div class="src-block">` + c.urls.map(u =>
@@ -277,6 +307,11 @@ function render(c){
     ).join("") + `</div>`;
   }
   $("rawSource").innerHTML = src;
+
+  $("adviceList").innerHTML = (c.recommendations || [])
+    .map(s => `<li>${esc(s)}</li>`).join("");
+  $("advicePanel").style.display =
+    (c.recommendations || []).length ? "" : "none";
 
   $("findings").innerHTML = c.findings.map(f => `
     <div class="finding">
@@ -317,7 +352,20 @@ $("aiBtn").onclick = async () => {
     if (!r.ok) throw new Error(data.detail || r.statusText);
     $("aiIntro").style.display = "none";
     const box = $("aiSummary");
-    box.textContent = data.summary;
+    const aiSev = data.verdict === "MALICIOUS" ? "bad"
+                : data.verdict === "SUSPICIOUS" ? "warn" : "ok";
+    const agree = data.agrees_with_scanner
+      ? `<span style="font-size:13px;color:var(--teal);font-weight:600;">✓ concurs with the scanner</span>`
+      : `<span style="font-size:13px;color:var(--amber);font-weight:600;">⚠ disagrees with the scanner — read why below</span>`;
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <span class="chip ${aiSev}">AI VERDICT: ${esc(data.verdict)} — ${esc(data.confidence)}</span>
+        ${agree}
+      </div>
+      <div style="white-space:pre-wrap;">${esc(data.summary)}</div>
+      ${(data.actions || []).length ? `
+        <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">The analyst recommends:</div>
+        <ol class="advice">${data.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
     box.style.display = "block";
   } catch (e) {
     $("aiError").textContent = e.message;

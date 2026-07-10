@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from .auth import auth_findings
+from .advice import advice_for
+from .auth import URGENCY_PHRASES, auth_findings
 from .models import (BAD, INFO, OK, WARN, Case, ChainNode, Finding, UrlInfo,
                      case_id_for)
 from .parser import ParsedEmail, parse_email
@@ -154,6 +155,12 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
 
     preview = (email.body_text or email.body_html)[:600]
 
+    # Substrings the UI should visually mark inside the body preview:
+    # matched pressure phrases plus every link that raised a flag.
+    lowered = f"{email.subject}\n{email.body_text}".lower()
+    highlights = [p for p in URGENCY_PHRASES if p in lowered]
+    highlights += [u.url for u in urls if u.flags]
+
     return Case(
         case_id=case_id_for(email.raw),
         verdict=verdict,
@@ -179,4 +186,6 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
         chain=_build_chain(email, urls, findings),
         body_preview=preview,
         attachments=email.attachments,
+        highlights=highlights,
+        recommendations=advice_for("email", verdict, findings),
     )

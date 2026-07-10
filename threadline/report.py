@@ -59,6 +59,10 @@ def markdown_report(case: Case) -> str:
     lines += ["", "## Attack Chain", ""]
     lines.append(" → ".join(f"**{n.label}** ({n.sub})" for n in case.chain))
 
+    if case.recommendations:
+        lines += ["", "## What You Should Do", ""]
+        lines += [f"{i}. {step}" for i, step in enumerate(case.recommendations, 1)]
+
     if case.urls:
         lines += ["", "## Indicators of Compromise", ""]
         for u in case.urls:

@@ -22,8 +22,14 @@ and fully auditable.
   color-coded by risk
 - **Case files, not pass/fail** — every scan gets a case number, a 0–100 risk
   score, findings in plain language, and an exportable markdown/JSON report
-- **AI analyst (powered by Claude)** — one click turns the findings into a
-  plain-English explanation and "what to do next" steps
+- **Evidence highlighting** — pressure language, brand lures, and flagged
+  links are marked right inside the message preview
+- **"What you should do" on every case** — concrete, verdict-specific next
+  steps (report to 7726 / reportphishing@apwg.org, block, password advice) in
+  the UI, the CLI, and the exported report
+- **AI ensemble analyst (powered by Claude)** — an independent second opinion
+  with its own verdict that confirms or challenges the heuristic scanner,
+  plus a plain-English explanation and tailored actions
 - **Google-only sign-in** — no passwords stored, ever; your case history is
   saved to your account and repeat offenders (same sender/domain across
   cases) are flagged automatically

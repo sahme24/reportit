@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 
+from .advice import advice_for
 from .models import BAD, INFO, OK, WARN, Case, ChainNode, Finding, case_id_for
 from .reputation import reputation_findings
 from .scanner import _SEV_ORDER, _url_findings, _verdict
@@ -167,6 +168,17 @@ def scan_sms(text: str, sender: str = "", offline: bool = False,
     verdict, confidence = _verdict(score)
     preview = text[:600]
 
+    # Substrings the UI should visually mark: pressure phrases, invoked
+    # brand names, and every link that raised a flag.
+    lowered = text.lower()
+    highlights = [p for p in SMS_URGENCY if p in lowered]
+    highlights += [b for b in LURE_BRANDS
+                   if re.search(rf"\b{re.escape(b)}\b", lowered)]
+    # A brand lure makes the link itself the payload — mark every link then.
+    lure_fired = any(f.category == "domain" and f.severity == BAD
+                     for f in findings)
+    highlights += [u.url for u in urls if u.flags or lure_fired]
+
     return Case(
         case_id=case_id_for(f"{sender}\n{text}".encode()),
         verdict=verdict,
@@ -189,4 +201,6 @@ def scan_sms(text: str, sender: str = "", offline: bool = False,
         body_preview=preview,
         attachments=[],
         kind="sms",
+        highlights=highlights,
+        recommendations=advice_for("sms", verdict, findings),
     )

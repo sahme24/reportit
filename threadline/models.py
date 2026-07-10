@@ -50,7 +50,9 @@ class Case:
     chain: list[ChainNode]
     body_preview: str
     attachments: list[dict]
-    kind: str = "email"    # email | sms
+    kind: str = "email"                                  # email | sms
+    highlights: list[str] = field(default_factory=list)  # substrings of the body worth marking
+    recommendations: list[str] = field(default_factory=list)  # what the recipient should do now
 
     def to_dict(self) -> dict:
         return asdict(self)

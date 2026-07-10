@@ -6,6 +6,7 @@ Uses the Claude API. Activates only when ANTHROPIC_API_KEY is configured
 
 from __future__ import annotations
 
+import json
 import os
 
 import anthropic
@@ -16,19 +17,43 @@ _MODEL = os.environ.get("REPORTIT_AI_MODEL", "claude-opus-4-8")
 
 _SYSTEM = """You are the AI analyst inside ReportIT.ai, an open-source phishing
 and smishing investigation tool for everyday people. You receive the results
-of an automated scan and explain them to someone with no security background.
+of an automated heuristic scan and act as an INDEPENDENT second opinion in an
+ensemble: judge the evidence yourself, then explain it to someone with no
+security background.
 
 Rules:
+- Form your own verdict from the evidence. Agree with the scanner only if the
+  evidence supports it; if the scanner over- or under-reacted (e.g. auth
+  failures caused by forwarding, or a lure the heuristics missed), say so.
 - Plain English, no jargon without a one-phrase explanation.
-- Be direct about the verdict and WHY, referencing the strongest 2-3 findings.
+- Reference the strongest 2-3 pieces of evidence in the summary.
 - Never include clickable URLs; keep all indicators defanged exactly as given.
-- Finish with a short "What you should do" list of 2-4 concrete steps
-  (e.g. delete it, report to reportphishing@apwg.org / 7726 for texts,
-  change a password ONLY via the official site typed by hand).
-- If the verdict is LIKELY CLEAN, say so plainly and mention the checks it
-  passed — do not invent danger. If forwarding broke authentication, explain
-  that in one sentence.
-- 120-200 words. No markdown headers; short paragraphs and one dash list."""
+- Actions: 2-4 concrete steps for this specific case (delete it, report to
+  reportphishing@apwg.org / forward texts to 7726, change a password ONLY via
+  the official site typed by hand). No generic filler.
+- If the message is LIKELY CLEAN, say so plainly — do not invent danger.
+- Summary: 80-160 words, short paragraphs, no markdown headers."""
+
+# Structured second opinion — the ensemble output the UI renders.
+_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string",
+                    "enum": ["MALICIOUS", "SUSPICIOUS", "LIKELY CLEAN"],
+                    "description": "Your independent verdict on the message."},
+        "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
+        "agrees_with_scanner": {
+            "type": "boolean",
+            "description": "Whether your verdict matches the heuristic scanner's."},
+        "summary": {"type": "string",
+                    "description": "Plain-English explanation for the recipient."},
+        "actions": {"type": "array", "items": {"type": "string"},
+                    "description": "2-4 concrete next steps for this case."},
+    },
+    "required": ["verdict", "confidence", "agrees_with_scanner",
+                 "summary", "actions"],
+    "additionalProperties": False,
+}
 
 
 def is_configured() -> bool:
@@ -60,23 +85,34 @@ def _case_brief(case: dict) -> str:
     return "\n".join(lines)
 
 
-def explain_case(case: dict) -> str:
-    """Return a plain-English analyst explanation. Raises on API errors —
-    the web layer maps those to friendly HTTP responses."""
+def analyze_case(case: dict) -> dict:
+    """Return the AI analyst's structured second opinion:
+    {verdict, confidence, agrees_with_scanner, summary, actions}.
+    Raises on API errors — the web layer maps those to friendly responses."""
     client = anthropic.Anthropic()
     response = client.messages.create(
         model=_MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         thinking={"type": "adaptive"},
-        output_config={"effort": "low"},
+        output_config={
+            "effort": "low",
+            "format": {"type": "json_schema", "schema": _SCHEMA},
+        },
         system=_SYSTEM,
         messages=[{
             "role": "user",
-            "content": "Explain this scan result to the person who received "
-                       "the message:\n\n" + _case_brief(case),
+            "content": "Give your independent second opinion on this scan, "
+                       "then explain it to the person who received the "
+                       "message:\n\n" + _case_brief(case),
         }],
     )
     if response.stop_reason == "refusal":
-        return ("The AI analyst declined to summarize this case. The scan "
-                "findings above still stand on their own.")
-    return next((b.text for b in response.content if b.type == "text"), "").strip()
+        return {
+            "verdict": case["verdict"], "confidence": "LOW",
+            "agrees_with_scanner": True,
+            "summary": ("The AI analyst declined to review this case. The "
+                        "scan findings above still stand on their own."),
+            "actions": [],
+        }
+    text = next((b.text for b in response.content if b.type == "text"), "{}")
+    return json.loads(text)

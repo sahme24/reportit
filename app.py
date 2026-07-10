@@ -234,7 +234,7 @@ def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict
             detail="The AI analyst isn't configured on this server — add an "
                    "ANTHROPIC_API_KEY to .env to enable it.")
     try:
-        return {"summary": ai.explain_case(req.case)}
+        return ai.analyze_case(req.case)
     except anthropic.RateLimitError:
         raise HTTPException(status_code=429,
                             detail="The AI analyst is busy — try again in a "

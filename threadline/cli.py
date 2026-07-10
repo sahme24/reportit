@@ -88,6 +88,11 @@ def main(argv: list[str] | None = None) -> int:
         print("   " + "  →  ".join(
             _c(n.severity, f"{n.label} [{n.sub}]", color) for n in case.chain))
         print()
+        if case.recommendations:
+            print(_c("bold", "  WHAT YOU SHOULD DO", color))
+            for i, step in enumerate(case.recommendations, 1):
+                print(f"   {i}. {step}")
+            print()
 
     if args.report:
         Path(args.report).write_text(markdown_report(case), encoding="utf-8")
