@@ -146,9 +146,10 @@
       <div class="panel-body">
         <div id="aiIntro" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <span style="color:var(--dim);font-size:14px;flex:1;min-width:220px;">
-            Get an independent second opinion in plain English — the analyst
-            forms its own verdict from the evidence and only sees the scan
-            results (links stay defanged).
+            The AI second opinion runs automatically with each scan. If it
+            didn't load, ask again here — the analyst forms its own verdict
+            from the evidence and only sees the scan results (links stay
+            defanged).
           </span>
           <button class="btn primary" id="aiBtn">Explain this case →</button>
         </div>
@@ -269,6 +270,14 @@ function render(c){
   $("aiError").textContent = "";
   $("aiBtn").disabled = false;
   $("aiBtn").textContent = "Explain this case →";
+  if (c.ai_opinion) {
+    // Ensemble mode: the second opinion ran as part of the scan.
+    showAiOpinion(c.ai_opinion);
+  } else if (c.ai_quota_exhausted) {
+    $("aiIntro").style.display = "none";
+    $("aiError").textContent = "Daily AI limit reached — it resets at " +
+      "midnight UTC. The findings and steps above don't count against it.";
+  }
 
   const sev = c.verdict === "MALICIOUS" ? "bad"
             : c.verdict === "SUSPICIOUS" ? "warn" : "ok";
@@ -342,6 +351,30 @@ function render(c){
   }).join("");
 }
 
+/* Render the AI second opinion — used both when it arrives with the scan
+   (ensemble mode) and when the user clicks the button as a retry. */
+function showAiOpinion(data){
+  $("aiIntro").style.display = "none";
+  const box = $("aiSummary");
+  const aiSev = data.verdict === "MALICIOUS" ? "bad"
+              : data.verdict === "SUSPICIOUS" ? "warn" : "ok";
+  const agree = data.agrees_with_scanner
+    ? `<span style="font-size:13px;color:var(--teal);font-weight:600;">✓ concurs with the scanner</span>`
+    : `<span style="font-size:13px;color:var(--amber);font-weight:600;">⚠ disagrees with the scanner — read why below</span>`;
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+      <span class="chip ${aiSev}">AI VERDICT: ${esc(data.verdict)} — ${esc(data.confidence)}</span>
+      ${agree}
+    </div>
+    <div style="white-space:pre-wrap;">${esc(data.summary)}</div>
+    ${(data.actions || []).length ? `
+      <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">The analyst recommends:</div>
+      <ol class="advice">${data.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
+  box.style.display = "block";
+  if (typeof data.uses_left === "number")
+    $("aiQuota").textContent = `${data.uses_left} OF ${aiLimit} LEFT TODAY`;
+}
+
 $("aiBtn").onclick = async () => {
   if (!currentCase) return;
   const btn = $("aiBtn");
@@ -355,25 +388,7 @@ $("aiBtn").onclick = async () => {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
-    $("aiIntro").style.display = "none";
-    const box = $("aiSummary");
-    const aiSev = data.verdict === "MALICIOUS" ? "bad"
-                : data.verdict === "SUSPICIOUS" ? "warn" : "ok";
-    const agree = data.agrees_with_scanner
-      ? `<span style="font-size:13px;color:var(--teal);font-weight:600;">✓ concurs with the scanner</span>`
-      : `<span style="font-size:13px;color:var(--amber);font-weight:600;">⚠ disagrees with the scanner — read why below</span>`;
-    box.innerHTML = `
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-        <span class="chip ${aiSev}">AI VERDICT: ${esc(data.verdict)} — ${esc(data.confidence)}</span>
-        ${agree}
-      </div>
-      <div style="white-space:pre-wrap;">${esc(data.summary)}</div>
-      ${(data.actions || []).length ? `
-        <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">The analyst recommends:</div>
-        <ol class="advice">${data.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
-    box.style.display = "block";
-    if (typeof data.uses_left === "number")
-      $("aiQuota").textContent = `${data.uses_left} OF ${aiLimit} LEFT TODAY`;
+    showAiOpinion(data);
   } catch (e) {
     $("aiError").textContent = e.message;
     btn.disabled = false; btn.textContent = "Explain this case →";

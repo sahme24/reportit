@@ -29,9 +29,12 @@ and fully auditable.
 - **"What you should do" on every case** — concrete, verdict-specific next
   steps (report to 7726 / reportphishing@apwg.org, block, password advice) in
   the UI, the CLI, and the exported report
-- **AI ensemble analyst (powered by Claude)** — an independent second opinion
-  with its own verdict that confirms or challenges the heuristic scanner,
-  plus a plain-English explanation and tailored actions
+- **AI ensemble in every scan** — an independent AI second opinion runs
+  automatically with each scan: its own verdict that confirms or challenges
+  the heuristic scanner, a plain-English explanation, and tailored actions
+- **OCR for image-based phishing** — links and pressure language hidden
+  inside attached or inline images are extracted with Tesseract and run
+  through the same URL/urgency/reputation checks
 - **Google-only sign-in** — no passwords stored, ever; your case history is
   saved to your account and repeat offenders (same sender/domain across
   cases) are flagged automatically
@@ -83,13 +86,30 @@ GOOGLE_CLIENT_SECRET=...
 Accounts created before the Google-only switch are linked automatically by
 email address (they keep their history and admin flag).
 
+## OCR for image-based phishing (optional)
+
+Scammers put the whole lure in a picture so text filters see nothing.
+With the [Tesseract](https://github.com/tesseract-ocr/tesseract) binary
+installed, ReportIT.ai reads attached and inline images and runs the hidden
+text through the same URL, typosquat, urgency, and reputation checks:
+
+```bash
+sudo apt install tesseract-ocr        # Debian/Ubuntu (already in the Docker image)
+brew install tesseract                # macOS
+choco install tesseract               # Windows
+```
+
+No Tesseract? Scans still work — cases with images just note that image
+text wasn't checked.
+
 ## AI analyst (optional)
 
-With an [Anthropic API key](https://platform.claude.com) in `.env`, every
-scan gets an **"Explain this case"** button — an independent AI second
-opinion (its own verdict + agreement flag vs. the heuristic scanner) plus a
-plain-English explanation and what-to-do-next steps. The analyst only sees
-the scan results (links defanged); it never visits anything.
+With an [Anthropic API key](https://platform.claude.com) in `.env`, an
+independent AI second opinion **runs automatically as part of every scan**:
+its own verdict + agreement flag vs. the heuristic scanner, a plain-English
+explanation, and what-to-do-next steps (an "Explain this case" button covers
+retries). The analyst only sees the scan results (links defanged); it never
+visits anything.
 
 Costs stay predictable: the default model is Claude Haiku (the cheapest
 tier) and each user gets **3 analyses per day** (resets midnight UTC).
@@ -112,6 +132,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 | Reputation | Domain age via RDAP (keyless), VirusTotal, AbuseIPDB, URLhaus |
 | History | Repeat senders/domains across this instance's previous cases |
 | SMS (smishing) | Brand-name lures pointing at unofficial domains, gateway/full-number senders, pressure language, all URL checks |
+| Images (OCR) | Links and pressure language hidden inside attached/inline images — extracted with Tesseract, then run through every URL check |
+| AI ensemble | Independent second-opinion verdict on every scan (agrees/disagrees with the heuristics), plain-English summary, tailored actions |
 
 ## Threat-intel keys (optional)
 

@@ -2,6 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Tesseract enables OCR of image-based phishing (threadline/ocr.py).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
 # Layer-cache the dependencies separately from the app code.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

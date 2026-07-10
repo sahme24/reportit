@@ -183,6 +183,34 @@ def _sms_enrichment(sender: str, urls) -> list[Finding]:
     return _sightings_finding(sender.strip().lower(), urls)
 
 
+def _attach_ai_opinion(user_id: int, result: dict) -> None:
+    """Run the AI second opinion as part of the scan (ensemble mode).
+
+    Quota-aware and fail-soft: no key, no quota left, or an API error all
+    leave the heuristic result standing on its own.
+    """
+    if not ai.is_configured():
+        return
+    used = db.ai_uses_today(user_id)
+    if used >= _AI_DAILY_LIMIT:
+        result["ai_quota_exhausted"] = True
+        return
+    try:
+        opinion = ai.analyze_case(result)
+    except Exception:
+        return  # heuristics stand alone; the manual button can retry
+    db.record_ai_use(user_id)
+    opinion["uses_left"] = _AI_DAILY_LIMIT - used - 1
+    result["ai_opinion"] = opinion
+    result["report_markdown"] += (
+        "\n## AI Analyst Second Opinion\n\n"
+        f"**AI verdict:** {opinion['verdict']} ({opinion['confidence']} "
+        "confidence) — "
+        + ("agrees" if opinion["agrees_with_scanner"] else "**disagrees**")
+        + " with the heuristic scanner.\n\n"
+        + opinion["summary"] + "\n")
+
+
 @app.post("/api/scan")
 def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
     if not req.raw.strip():
@@ -194,6 +222,8 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
         case = scan(req.raw, offline=req.offline, enrich=_email_enrichment)
     result = case.to_dict()
     result["report_markdown"] = markdown_report(case)
+    if not req.offline:
+        _attach_ai_opinion(user["id"], result)
     db.record_scan(user["id"], result)
     return result
 

@@ -32,6 +32,7 @@ class ParsedEmail:
     forwarded: bool = False          # Resent-*/X-Forwarded-* headers present
     auth_earlier_pass: bool = False  # an earlier hop saw SPF+DKIM pass
     attachments: list[dict] = field(default_factory=list)
+    images: list[dict] = field(default_factory=list)  # {filename, data} for OCR
     raw: bytes = b""
 
 
@@ -142,6 +143,20 @@ def _attachments(msg: EmailMessage) -> list[dict]:
     return out
 
 
+def _images(msg: EmailMessage) -> list[dict]:
+    """Attached AND inline images (inline ones usually have no filename)."""
+    out = []
+    for part in msg.walk():
+        if part.get_content_maintype() != "image":
+            continue
+        payload = part.get_payload(decode=True) or b""
+        if not payload or len(payload) > 8_000_000:
+            continue
+        out.append({"filename": part.get_filename() or "inline image",
+                    "data": payload})
+    return out
+
+
 def parse_email(raw: bytes | str) -> ParsedEmail:
     if isinstance(raw, str):
         raw = raw.encode("utf-8", errors="replace")
@@ -172,5 +187,6 @@ def parse_email(raw: bytes | str) -> ParsedEmail:
         forwarded=_is_forwarded(msg),
         auth_earlier_pass=_earlier_hop_pass(msg),
         attachments=_attachments(msg),
+        images=_images(msg),
         raw=raw,
     )
