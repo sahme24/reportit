@@ -54,17 +54,17 @@ const ReportIT = {
 
     const banner = localStorage.getItem("reportit-banner") === "off" ? "" : `
       <div class="announce">
-        New! ReportIT.ai is fully open source —
-        <a href="https://github.com/YOURUSERNAME/reportit">star it on GitHub →</a>
+        New! Every scan now includes an AI second opinion and reads text
+        hidden inside images.
         <button class="dismiss" aria-label="Dismiss" onclick="ReportIT.dismissBanner()">✕</button>
       </div>`;
 
     let links, right;
     if (user) {
       links = `
+        ${link("/dashboard", "Dashboard")}
         ${link("/scan", "Scanner")}
-        ${link("/history", "Case History")}
-        ${user.is_admin ? link("/dashboard", "Dashboard") : ""}`;
+        ${link("/history", "Case History")}`;
       right = `
         <span class="welcome">Welcome, <b>${this.esc(user.name)}</b></span>
         <button class="btn outline pill" onclick="ReportIT.logout()">Sign out</button>`;
@@ -72,7 +72,7 @@ const ReportIT = {
       links = `
         ${link("/#how", "How it works")}
         ${link("/#why", "Why ReportIT")}
-        ${link("/#trust", "Open Source")}
+        ${link("/#trust", "Privacy")}
         ${link("/#faq", "FAQ")}`;
       right = `
         <a href="/login" class="btn outline pill">Login</a>

@@ -60,3 +60,19 @@ def test_ai_daily_limit_enforced(monkeypatch):
 
     blocked = c.post("/api/explain", json=payload)
     assert blocked.status_code == 429
+    detail = blocked.json()["detail"]
+    # Rolling 24h window: the response tells the client when a slot frees up.
+    assert detail["refresh_at"] is not None
+
+
+def test_personal_dashboard_stats():
+    c = _signed_in_client()
+    s = c.get("/api/my/stats").json()
+    assert {"scans", "malicious", "suspicious", "clean",
+            "ai_uses_left", "ai_limit", "recent", "instance"} <= s.keys()
+    assert {"scans", "users", "threats"} <= s["instance"].keys()
+
+
+def test_public_stats_expose_threats():
+    s = client.get("/api/stats").json()
+    assert "threats" in s and s["threats"] >= 0

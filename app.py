@@ -127,7 +127,7 @@ def auth_google_callback(request: Request, code: str = "", state: str = "",
 
     user = db.upsert_google_user(info["email"], info.get("name", ""),
                                  info.get("sub", ""))
-    response = RedirectResponse("/scan")
+    response = RedirectResponse("/dashboard")
     response.set_cookie(_COOKIE, db.create_session(user["id"]),
                         max_age=db.SESSION_DAYS * 86400,
                         httponly=True, samesite="lax")
@@ -191,9 +191,10 @@ def _attach_ai_opinion(user_id: int, result: dict) -> None:
     """
     if not ai.is_configured():
         return
-    used = db.ai_uses_today(user_id)
+    used, refresh_at = db.ai_usage(user_id)
     if used >= _AI_DAILY_LIMIT:
         result["ai_quota_exhausted"] = True
+        result["ai_refresh_at"] = refresh_at
         return
     try:
         opinion = ai.analyze_case(result)
@@ -233,6 +234,20 @@ def api_history(user: dict = Depends(require_user)) -> dict:
     return {"scans": db.user_scans(user["id"])}
 
 
+@app.get("/api/my/stats")
+def api_my_stats(user: dict = Depends(require_user)) -> dict:
+    """Personal dashboard: the user's own numbers + instance totals."""
+    stats = db.user_stats(user["id"])
+    used, refresh_at = db.ai_usage(user["id"])
+    stats["ai_enabled"] = ai.is_configured()
+    stats["ai_uses_left"] = max(_AI_DAILY_LIMIT - used, 0)
+    stats["ai_limit"] = _AI_DAILY_LIMIT
+    stats["ai_refresh_at"] = refresh_at
+    stats["recent"] = db.user_scans(user["id"], limit=5)
+    stats["instance"] = db.public_stats()
+    return stats
+
+
 @app.get("/api/sample/{name}")
 def api_sample(name: str) -> PlainTextResponse:
     safe = {"phish": "phish-0ffice365.eml", "clean": "clean-notification.eml",
@@ -268,13 +283,16 @@ def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict
             status_code=503,
             detail="The AI analyst isn't configured on this server — add an "
                    "ANTHROPIC_API_KEY to .env to enable it.")
-    used = db.ai_uses_today(user["id"])
+    used, refresh_at = db.ai_usage(user["id"])
     if used >= _AI_DAILY_LIMIT:
+        # The frontend renders refresh_at in the user's local time,
+        # Claude/ChatGPT-style ("more analyses at 3:45 PM").
         raise HTTPException(
             status_code=429,
-            detail=f"You've used all {_AI_DAILY_LIMIT} AI analyses for today — "
-                   "the limit resets at midnight UTC. The scan findings and "
-                   "recommendations above don't count against it.")
+            detail={"message": f"You've used your {_AI_DAILY_LIMIT} free AI "
+                               "analyses. Each one frees up 24 hours after "
+                               "it was used.",
+                    "refresh_at": refresh_at})
     try:
         result = ai.analyze_case(req.case)
         db.record_ai_use(user["id"])

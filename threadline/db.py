@@ -182,13 +182,21 @@ def prior_sightings(from_addr: str, domain: str) -> dict:
     return {"sender": sender, "domain": dom}
 
 
-def ai_uses_today(user_id: int) -> int:
-    """AI-analyst calls this user has made since midnight UTC."""
-    midnight = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00")
+def ai_usage(user_id: int) -> tuple[int, str | None]:
+    """Rolling 24-hour AI quota (Claude/ChatGPT style).
+
+    Returns (uses_in_last_24h, refresh_at_iso) — refresh_at is when the
+    OLDEST use in the window expires, i.e. when a slot frees up.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     with _connect() as conn:
-        return conn.execute(
-            "SELECT COUNT(*) c FROM ai_uses WHERE user_id = ? AND created_at >= ?",
-            (user_id, midnight)).fetchone()["c"]
+        rows = conn.execute(
+            "SELECT created_at FROM ai_uses WHERE user_id = ? AND"
+            " created_at >= ? ORDER BY created_at", (user_id, cutoff)).fetchall()
+    if not rows:
+        return 0, None
+    oldest = datetime.fromisoformat(rows[0]["created_at"])
+    return len(rows), (oldest + timedelta(hours=24)).isoformat()
 
 
 def record_ai_use(user_id: int) -> None:
@@ -215,9 +223,35 @@ def public_stats() -> dict:
         return {
             "scans": conn.execute("SELECT COUNT(*) c FROM scans").fetchone()["c"],
             "users": conn.execute("SELECT COUNT(*) c FROM users").fetchone()["c"],
+            "threats": conn.execute(
+                "SELECT COUNT(*) c FROM scans WHERE verdict IN"
+                " ('MALICIOUS', 'SUSPICIOUS')").fetchone()["c"],
             "indicators": conn.execute(
                 "SELECT COALESCE(SUM(bad_findings),0) c FROM scans").fetchone()["c"],
         }
+
+
+def user_stats(user_id: int) -> dict:
+    """Personal dashboard numbers for one signed-in user."""
+    with _connect() as conn:
+        verdicts = {r["verdict"]: r["c"] for r in conn.execute(
+            "SELECT verdict, COUNT(*) c FROM scans WHERE user_id = ?"
+            " GROUP BY verdict", (user_id,))}
+        kinds = {r["kind"]: r["c"] for r in conn.execute(
+            "SELECT kind, COUNT(*) c FROM scans WHERE user_id = ?"
+            " GROUP BY kind", (user_id,))}
+        last = conn.execute(
+            "SELECT created_at FROM scans WHERE user_id = ?"
+            " ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
+    return {
+        "scans": sum(verdicts.values()),
+        "malicious": verdicts.get("MALICIOUS", 0),
+        "suspicious": verdicts.get("SUSPICIOUS", 0),
+        "clean": verdicts.get("LIKELY CLEAN", 0),
+        "email": kinds.get("email", 0),
+        "sms": kinds.get("sms", 0),
+        "last_scan_at": last["created_at"] if last else None,
+    }
 
 
 def admin_stats() -> dict:

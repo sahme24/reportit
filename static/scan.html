@@ -205,7 +205,7 @@ let aiEnabled = false, aiLimit = 3;
 fetch("/api/config").then(r => r.json()).then(cfg => {
   aiEnabled = cfg.ai;
   aiLimit = cfg.ai_daily_limit || 3;
-  $("aiQuota").textContent = `${aiLimit} FREE ANALYSES / DAY`;
+  $("aiQuota").textContent = `${aiLimit} FREE ANALYSES / 24H`;
 });
 
 async function loadSample(name){
@@ -275,8 +275,7 @@ function render(c){
     showAiOpinion(c.ai_opinion);
   } else if (c.ai_quota_exhausted) {
     $("aiIntro").style.display = "none";
-    $("aiError").textContent = "Daily AI limit reached — it resets at " +
-      "midnight UTC. The findings and steps above don't count against it.";
+    $("aiError").textContent = quotaMessage(c.ai_refresh_at);
   }
 
   const sev = c.verdict === "MALICIOUS" ? "bad"
@@ -351,6 +350,18 @@ function render(c){
   }).join("");
 }
 
+/* "You're out of free analyses — more at 3:45 PM" (user's local time). */
+function quotaMessage(refreshAt){
+  let when = "in a bit";
+  if (refreshAt) {
+    const d = new Date(refreshAt);
+    const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    when = d.toDateString() === new Date().toDateString() ? `at ${t}` : `at ${t} tomorrow`;
+  }
+  return `You're out of free AI analyses — your next one unlocks ${when}. ` +
+         "Scans, findings, and next steps stay unlimited.";
+}
+
 /* Render the AI second opinion — used both when it arrives with the scan
    (ensemble mode) and when the user clicks the button as a retry. */
 function showAiOpinion(data){
@@ -387,7 +398,10 @@ $("aiBtn").onclick = async () => {
       body: JSON.stringify({case: currentCase}),
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || r.statusText);
+    if (r.status === 429 && data.detail && data.detail.refresh_at !== undefined)
+      throw new Error(quotaMessage(data.detail.refresh_at));
+    if (!r.ok)
+      throw new Error((data.detail && data.detail.message) || data.detail || r.statusText);
     showAiOpinion(data);
   } catch (e) {
     $("aiError").textContent = e.message;

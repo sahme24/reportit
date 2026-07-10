@@ -42,10 +42,62 @@
 
 <div class="wrap page">
   <div style="margin-bottom:22px;">
-    <span class="microlabel">Admin only</span>
-    <h2 style="font-size:24px;font-weight:700;">Instance Dashboard</h2>
+    <span class="microlabel" id="dashKicker">Your account</span>
+    <h2 style="font-size:24px;font-weight:700;" id="dashTitle">Your Dashboard</h2>
   </div>
 
+  <!-- Personal dashboard: every signed-in user -->
+  <div id="userView" style="display:none">
+    <div class="tiles">
+      <div class="panel tile lift">
+        <div class="lab">Your Cases</div>
+        <div class="num" id="uScans">—</div>
+        <div class="sub" id="uKinds"></div>
+      </div>
+      <div class="panel tile">
+        <div class="lab">Threats Caught</div>
+        <div class="num" id="uThreats" style="color:var(--red);">—</div>
+        <div class="sub" id="uThreatsSub"></div>
+      </div>
+      <div class="panel tile">
+        <div class="lab">Likely Clean</div>
+        <div class="num" id="uClean" style="color:var(--teal);">—</div>
+      </div>
+      <div class="panel tile">
+        <div class="lab">AI Analyses Left</div>
+        <div class="num" id="uAi">—</div>
+        <div class="sub" id="uAiSub"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:20px;">
+      <div class="panel-head"><span class="panel-title">Community impact — all of ReportIT.ai</span></div>
+      <div class="verdict-split">
+        <span class="split-item">🔍 Messages investigated <b id="iScans">—</b></span>
+        <span class="split-item">🛡️ Threats detected <b id="iThreats">—</b></span>
+        <span class="split-item">👤 Active users <b id="iUsers">—</b></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Your latest cases</span>
+        <a class="btn primary" href="/scan" style="text-decoration:none;">New Scan →</a>
+      </div>
+      <div class="table-scroll">
+        <table class="data" id="uTable">
+          <thead><tr><th>Case</th><th>Type</th><th>Verdict</th><th>Risk</th><th>Opened</th></tr></thead>
+          <tbody id="uRows"></tbody>
+        </table>
+        <div id="uEmpty" style="display:none;padding:36px;text-align:center;color:var(--faint);">
+          No cases yet — <a href="/scan">scan your first message →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instance dashboard: admin only -->
+  <div id="adminView" style="display:none">
   <div class="tiles">
     <div class="panel tile lift">
       <div class="lab">Active Users</div>
@@ -103,6 +155,7 @@
       </div>
     </div>
   </div>
+  </div><!-- /adminView -->
 </div>
 
 <div class="tooltip" id="tooltip"></div>
@@ -169,16 +222,62 @@ function barChart(svgEl, days, color){
   });
 }
 
-ReportIT.topbar("/dashboard").then(async user => {
-  if (!user) { location.href = "/login?next=/dashboard"; return; }
-  const r = await fetch("/api/admin/stats");
-  if (r.status === 403) {
-    document.querySelector(".wrap").insertAdjacentHTML("beforeend",
-      `<div class="panel" style="padding:30px;text-align:center;color:var(--dim);">
-         This area is for the instance admin. Your cases live in
-         <a href="/history">Case History</a>.</div>`);
+const kindIcon = k => k === "sms" ? "💬 SMS" : "📧 Email";
+
+/* "3:45 PM" today, "3:45 PM tomorrow" if it lands on another day. */
+const fmtTime = iso => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? t : `${t} tomorrow`;
+};
+
+async function renderPersonal(){
+  const s = await (await fetch("/api/my/stats")).json();
+  document.getElementById("userView").style.display = "";
+  const fmt = n => n.toLocaleString();
+  const set = (id, v) => document.getElementById(id).textContent = v;
+
+  set("uScans", fmt(s.scans));
+  set("uKinds", `${s.email} email · ${s.sms} SMS`);
+  set("uThreats", fmt(s.malicious + s.suspicious));
+  set("uThreatsSub", `${s.malicious} malicious · ${s.suspicious} suspicious`);
+  set("uClean", fmt(s.clean));
+  if (!s.ai_enabled) {
+    set("uAi", "—"); set("uAiSub", "not enabled on this server");
+  } else {
+    set("uAi", `${s.ai_uses_left} / ${s.ai_limit}`);
+    set("uAiSub", s.ai_uses_left === 0 && s.ai_refresh_at
+        ? `more at ${fmtTime(s.ai_refresh_at)}` : "refresh on a rolling 24h");
+  }
+  set("iScans", fmt(s.instance.scans));
+  set("iThreats", fmt(s.instance.threats));
+  set("iUsers", fmt(s.instance.users));
+
+  if (!s.recent.length) {
+    document.getElementById("uTable").style.display = "none";
+    document.getElementById("uEmpty").style.display = "";
     return;
   }
+  document.getElementById("uRows").innerHTML = s.recent.map(c => `
+    <tr>
+      <td class="mono">#${esc(c.case_id)}</td>
+      <td>${kindIcon(c.kind)}</td>
+      <td><span class="chip ${chip(c.verdict)}">${esc(c.verdict)}</span></td>
+      <td class="mono">${c.score}/100</td>
+      <td class="mono">${esc((c.created_at || "").slice(0, 16).replace("T", " "))}</td>
+    </tr>`).join("");
+}
+
+ReportIT.topbar("/dashboard").then(async user => {
+  if (!user) { location.href = "/login?next=/dashboard"; return; }
+  if (!user.is_admin) { renderPersonal(); return; }
+
+  document.getElementById("dashKicker").textContent = "Admin";
+  document.getElementById("dashTitle").textContent = "Instance Dashboard";
+  document.getElementById("adminView").style.display = "";
+  const r = await fetch("/api/admin/stats");
+  if (!r.ok) return;
   const s = await r.json();
   const fmt = n => n.toLocaleString();
   const set = (id, v) => document.getElementById(id).textContent = v;

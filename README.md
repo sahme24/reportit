@@ -2,7 +2,8 @@
 
 [![CI/CD](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml/badge.svg)](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml)
 
-**Open-source phishing investigation for everyone.**
+**Phishing and smishing investigation for everyone — delivered as a hosted
+web app.** (Private repository — see License below.)
 
 Ever gotten a phishing email? Everyone has. ReportIT.ai reads it the way a
 security analyst would — parsing headers, verifying authentication, hunting
@@ -11,8 +12,8 @@ sender to landing page. (The analysis engine lives in the `threadline/`
 package — every scan traces the thread of the attack.)
 
 Enterprises have SOC teams and commercial platforms for this. The average
-person has a spam folder. ReportIT.ai closes that gap — free, self-hostable,
-and fully auditable.
+person has a spam folder. ReportIT.ai closes that gap — free to use, no
+setup, live on the web.
 
 ## Features
 
@@ -112,7 +113,9 @@ retries). The analyst only sees the scan results (links defanged); it never
 visits anything.
 
 Costs stay predictable: the default model is Claude Haiku (the cheapest
-tier) and each user gets **3 analyses per day** (resets midnight UTC).
+tier) and each user gets **3 analyses per rolling 24 hours** — each use
+frees up exactly 24h after it happened, and the UI tells the user the
+local time their next one unlocks (Claude/ChatGPT style).
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
@@ -148,10 +151,10 @@ URLHAUS_API_KEY=...     # auth.abuse.ch — free
 No keys? ReportIT.ai still runs every offline heuristic plus RDAP domain-age
 checks. Lookups fail soft — a dead API never breaks a scan.
 
-## Why you can trust it
+## Why users can trust it
 
-- **Every heuristic is public code** — read [`threadline/`](threadline), it's small on purpose
-- **Runs on your machine** — Python + SQLite, no cloud dependency
+- **Bodies analyzed, then discarded** — the database keeps verdict, sender,
+  subject, and defanged indicators; never the message body
 - **Defanged by design** — reports neutralize URLs (`hxxps://…[.]com`);
   links found in a message are never visited
 - **No passwords, ever** — sign-in is Google OAuth only; the database stores
@@ -211,12 +214,14 @@ docker build -t reportit .
 docker run -p 8000:8000 -v reportit-data:/data --env-file .env reportit
 ```
 
-## Contributing
+## Contributing (collaborators)
 
-Issues and PRs welcome. If you're adding a heuristic, include a sanitized
-sample email that triggers it. Never commit real phishing payloads, live
-malicious URLs (defang them), or anyone's personal data.
+If you're adding a heuristic, include a sanitized sample message that
+triggers it. Never commit real phishing payloads, live malicious URLs
+(defang them), or anyone's personal data.
 
 ## License
 
-[MIT](LICENSE) — use it, fork it, ship it.
+**Private, closed-source project** — not licensed for redistribution or
+self-hosting. (The [MIT](LICENSE) file is retained in case the project is
+re-opened later.)

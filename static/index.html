@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ReportIT.ai — Ever gotten a phishing email?</title>
-<meta name="description" content="Paste a suspicious email and get an analyst-grade investigation: sender verification, link forensics, threat intel, and a plain-English verdict. Free, instant, open source.">
+<meta name="description" content="Paste a suspicious email or text message and get an analyst-grade investigation: sender verification, link forensics, threat intel, and a plain-English verdict. Free and instant.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
@@ -135,13 +135,17 @@
 <div id="topbar"></div>
 
 <section class="hero wrap">
+  <div style="margin-bottom:18px;">
+    <span class="badge-new" id="threatBadge" style="font-size:13px;padding:6px 16px;">
+      🛡️ <b id="threatCount">…</b>&nbsp;threats detected as of today
+    </span>
+  </div>
   <h1>Ever gotten a <span class="accent">phishing email</span>?<br>Now you can fight back.</h1>
   <p class="lede">
     Everyone has — and most of us just delete it and hope. ReportIT.ai reads a
     suspicious email <b>or text message</b> the way a security analyst would: it
     verifies the sender, checks every link against threat intelligence, traces
-    the attack chain, and gives you a plain-English verdict. Free, instant, and
-    open source.
+    the attack chain, and gives you a plain-English verdict. Free and instant.
   </p>
 
   <div class="tabs-block">
@@ -157,9 +161,9 @@
 
 <div class="stats-band">
   <div class="wrap stats-grid">
-    <div class="stat"><div class="icon">🔍</div><div class="num" id="statScans">—</div><div class="cap">Emails Investigated</div></div>
+    <div class="stat"><div class="icon">🔍</div><div class="num" id="statScans">—</div><div class="cap">Messages Investigated</div></div>
+    <div class="stat"><div class="icon">🛡️</div><div class="num" id="statThreats">—</div><div class="cap">Threats Detected</div></div>
     <div class="stat"><div class="icon">👤</div><div class="num" id="statUsers">—</div><div class="cap">Active Users</div></div>
-    <div class="stat"><div class="icon">⚠️</div><div class="num" id="statIndicators">—</div><div class="cap">Malicious Indicators Flagged</div></div>
   </div>
 </div>
 
@@ -233,30 +237,29 @@
 
 <section class="section wrap trust" id="trust">
   <div>
-    <span class="microlabel">Trust through transparency</span>
-    <h2>A security tool you can read, line by line.</h2>
+    <span class="microlabel">Privacy by design</span>
+    <h2>Your messages are evidence, not data to keep.</h2>
     <p class="big">
-      You shouldn't have to trust a black box with your email. ReportIT.ai is
-      fully open source — audit every check, run it on your own machine, and
-      verify exactly what leaves it (by default: nothing but optional, anonymous
-      reputation lookups).
+      A tool that reads suspicious email has to be careful with it. ReportIT.ai
+      analyzes the message you paste, keeps only the case verdict and metadata
+      for your history, and discards the body.
     </p>
     <ul class="trust-points">
-      <li><span class="tick">✓</span><span><b>Open source, MIT licensed.</b> Every heuristic and API call is public code on GitHub.</span></li>
-      <li><span class="tick">✓</span><span><b>Self-hostable in two commands.</b> Python + SQLite. No cloud dependency.</span></li>
+      <li><span class="tick">✓</span><span><b>Bodies analyzed, then discarded.</b> Your history stores the verdict, sender, and subject — never the full message.</span></li>
+      <li><span class="tick">✓</span><span><b>No passwords, ever.</b> Sign-in is Google-only; we receive just your name and email.</span></li>
       <li><span class="tick">✓</span><span><b>Defanged by design.</b> Malicious URLs are neutralized in every report, and links are never visited.</span></li>
-      <li><span class="tick">✓</span><span><b>Your keys, your quota.</b> Threat-intel APIs run on your own free-tier keys — or not at all.</span></li>
+      <li><span class="tick">✓</span><span><b>The AI analyst sees findings only.</b> It reviews the scan results with links defanged — it can't click anything.</span></li>
     </ul>
   </div>
   <div class="panel repo-card">
-    <div class="microlabel" style="margin-bottom:10px;">Run it yourself</div>
-    <div><span class="cmt"># clone and install</span></div>
-    <div class="cmd">git clone https://github.com/YOURUSERNAME/reportit</div>
-    <div class="cmd">pip install -r requirements.txt</div>
-    <div style="margin-top:8px;"><span class="cmt"># scan from the terminal…</span></div>
-    <div class="cmd">python -m threadline suspicious.eml</div>
-    <div style="margin-top:8px;"><span class="cmt"># …or run the full web app</span></div>
-    <div class="cmd">uvicorn app:app</div>
+    <div class="microlabel" style="margin-bottom:10px;">What a case stores</div>
+    <div><span class="cmt"># kept — your case history</span></div>
+    <div class="cmd">verdict, risk score, sender, subject line</div>
+    <div class="cmd">defanged indicators (hxxps://…[.]com)</div>
+    <div style="margin-top:8px;"><span class="cmt"># analyzed, then discarded</span></div>
+    <div class="cmd">the message body and attachments</div>
+    <div style="margin-top:8px;"><span class="cmt"># never done</span></div>
+    <div class="cmd">visiting links · storing passwords</div>
   </div>
 </section>
 
@@ -271,17 +274,17 @@
 <div class="wrap">
   <div class="cta-final">
     <h2>The next suspicious email doesn't have to be a guess.</h2>
-    <p>Free account, no card, open code.</p>
+    <p>Free account, no card required.</p>
     <a href="/login?mode=signup" class="btn primary" style="font-size:15px;padding:12px 26px;">Start Free →</a>
   </div>
 </div>
 
 <footer class="footer">
   <div class="wrap">
-    <span>ReportIT.ai — open-source phishing investigation for everyone.</span>
+    <span>ReportIT.ai — phishing and smishing investigation for everyone.</span>
     <span>
-      <a href="https://github.com/YOURUSERNAME/reportit">GitHub</a> ·
       <a href="/#how">How it works</a> ·
+      <a href="/#trust">Privacy</a> ·
       <a href="/#faq">FAQ</a> ·
       <a href="/login">Sign in</a>
     </span>
@@ -335,7 +338,7 @@ renderTabs();
 const FAQ = [
   {
     q: "Is ReportIT.ai really free?",
-    a: "Yes. The code is open source (MIT), analysis runs on the server you're using, and the threat-intel lookups use free public APIs. There's no paid tier, no card, and nothing to unlock — if you want, you can even run your own copy.",
+    a: "Yes. Scanning is unlimited and free — no paid tier, no card, nothing to unlock. The AI second opinion is also free, with a fair-use cap of a few analyses per account that refresh on a rolling 24-hour basis.",
   },
   {
     q: "Why do I have to sign in with Google?",
@@ -351,11 +354,11 @@ const FAQ = [
   },
   {
     q: "What does the AI analyst do?",
-    a: "After a scan, the built-in AI analyst gives an independent second opinion and turns the technical findings into a plain-English explanation: what's wrong, why the verdict is what it is, and what you should do next. It only ever sees the scan results with links defanged — it can't visit anything. Each account gets a few free analyses per day.",
+    a: "After a scan, the built-in AI analyst gives an independent second opinion and turns the technical findings into a plain-English explanation: what's wrong, why the verdict is what it is, and what you should do next. It only ever sees the scan results with links defanged — it can't visit anything. Each account gets 3 free analyses that refresh on a rolling 24-hour basis.",
   },
   {
     q: "Can I self-host it?",
-    a: "Yes — that's the point of it being open source. Python + SQLite, two commands to run, and every heuristic is public code you can audit. Grab it from GitHub, add your own free-tier API keys, and it's yours.",
+    a: "Not currently — ReportIT.ai runs as a hosted service so everyone gets the same up-to-date detections, threat-intel connections, and AI analysis without any setup. Just sign in and scan.",
   },
 ];
 document.getElementById("faqList").innerHTML = FAQ.map((f, i) => `
@@ -377,8 +380,9 @@ function toggleFaq(i){
     const s = await (await fetch("/api/stats")).json();
     const fmt = n => n.toLocaleString();
     document.getElementById("statScans").textContent = fmt(s.scans);
+    document.getElementById("statThreats").textContent = fmt(s.threats);
     document.getElementById("statUsers").textContent = fmt(s.users);
-    document.getElementById("statIndicators").textContent = fmt(s.indicators);
+    document.getElementById("threatCount").textContent = fmt(s.threats);
   } catch {}
 })();
 </script>
