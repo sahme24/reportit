@@ -7,7 +7,6 @@ Sign-in is Google-only. Create OAuth credentials at
 https://console.cloud.google.com/apis/credentials (Web application; add
 <your-url>/auth/google/callback as an authorized redirect URI) and put
 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.
-The first account that signs in on a fresh database becomes the admin.
 """
 
 from __future__ import annotations
@@ -25,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from threadline import ai, db
+from threadline.advice import advice_for
 from threadline.models import WARN, Finding
 from threadline.report import markdown_report
 from threadline.reputation import load_dotenv
@@ -70,12 +70,6 @@ def current_user(threadline_session: str = Cookie(default="")) -> dict | None:
 def require_user(user: dict | None = Depends(current_user)) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="Sign in to open a case.")
-    return user
-
-
-def require_admin(user: dict = Depends(require_user)) -> dict:
-    if not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Admin access required.")
     return user
 
 
@@ -187,26 +181,13 @@ def _sms_enrichment(sender: str, urls) -> list[Finding]:
     return _sightings_finding(sender.strip().lower(), urls)
 
 
-def _attach_ai_opinion(result: dict) -> None:
-    """Adds the AI's independent read to an already-completed scan.
-
-    Fails soft: an API hiccup just leaves the heuristic findings standing
-    alone. The scan itself was already counted against today's quota by
-    the caller in api_scan, regardless of whether this succeeds, since
-    there's one scan action here (heuristics + AI together), not two.
-    """
+def _ai_opinion(case_dict: dict) -> dict | None:
+    """Independent AI read of a finished case, or None on any failure.
+    Fails soft: the heuristic verdict stands alone when this returns None."""
     try:
-        opinion = ai.analyze_case(result)
+        return ai.analyze_case(case_dict)
     except Exception:
-        return  # heuristics stand alone; the manual button can retry
-    result["ai_opinion"] = opinion
-    result["report_markdown"] += (
-        "\n## AI Analysis\n\n"
-        f"**AI verdict:** {opinion['verdict']} ({opinion['confidence']} "
-        "confidence), and it "
-        + ("agrees" if opinion["agrees_with_scanner"] else "**disagrees**")
-        + " with the automated findings.\n\n"
-        + opinion["summary"] + "\n")
+        return None
 
 
 @app.post("/api/scan")
@@ -236,13 +217,27 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
                         enrich=_sms_enrichment)
     else:
         case = scan(req.raw, offline=req.offline, enrich=_email_enrichment)
-    result = case.to_dict()
-    result["report_markdown"] = markdown_report(case)
 
+    opinion = None
     if ai_enabled:
         db.record_ai_use(user["id"])
-        _attach_ai_opinion(result)
+        opinion = _ai_opinion(case.to_dict())
+        if opinion:
+            # The AI verdict becomes THE verdict, not a second one shown
+            # next to the heuristic score, so there's only ever one result
+            # on screen. Recompute the advice list so it matches too.
+            case.verdict = opinion["verdict"]
+            case.confidence = opinion["confidence"]
+            case.recommendations = advice_for(case.kind, case.verdict, case.findings)
+
+    result = case.to_dict()
+    result["report_markdown"] = markdown_report(case)
+    if opinion:
+        result["ai_opinion"] = {"summary": opinion["summary"],
+                                "actions": opinion["actions"]}
         result["uses_left"] = max(_AI_DAILY_LIMIT - used - 1, 0)
+        result["report_markdown"] += (
+            "\n## Why This Verdict\n\n" + opinion["summary"] + "\n")
 
     db.record_scan(user["id"], result)
     return result
@@ -325,11 +320,6 @@ def api_stats() -> dict:
     return db.public_stats()
 
 
-@app.get("/api/admin/stats")
-def api_admin_stats(user: dict = Depends(require_admin)) -> dict:
-    return db.admin_stats()
-
-
 # --------------------------------------------------------------------------
 # Pages
 # --------------------------------------------------------------------------
@@ -361,8 +351,3 @@ def page_history() -> FileResponse:
 @app.get("/dashboard")
 def page_dashboard() -> FileResponse:
     return FileResponse(STATIC / "dashboard.html")
-
-
-@app.get("/admin")
-def page_admin() -> FileResponse:
-    return FileResponse(STATIC / "admin.html")

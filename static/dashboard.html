@@ -18,19 +18,15 @@
   .verdict-split{display:flex;gap:16px;flex-wrap:wrap;padding:15px 18px;}
   .split-item{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--dim);}
   .split-item b{color:var(--ink);font-family:'Poppins',sans-serif;}
-  .admin-link{font-size:12.5px;color:var(--dim);}
 </style>
 </head>
 <body>
 <div id="topbar"></div>
 
 <div class="wrap page">
-  <div style="margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;">
-    <div>
-      <span class="microlabel">Your account</span>
-      <h2 style="font-size:24px;font-weight:700;">Your Dashboard</h2>
-    </div>
-    <a class="admin-link hidden" id="adminLink" href="/admin">Instance stats (admin) &rarr;</a>
+  <div style="margin-bottom:22px;">
+    <span class="microlabel">Your account</span>
+    <h2 style="font-size:24px;font-weight:700;">Your Dashboard</h2>
   </div>
 
   <div class="tiles">
@@ -97,7 +93,6 @@ const fmtTime = iso => {
 
 ReportIT.topbar("/dashboard").then(async user => {
   if (!user) { location.href = "/login?next=/dashboard"; return; }
-  if (user.is_admin) document.getElementById("adminLink").classList.remove("hidden");
 
   const s = await (await fetch("/api/my/stats")).json();
   const fmt = n => n.toLocaleString();

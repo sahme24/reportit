@@ -120,14 +120,15 @@ def _attachment_findings(attachments: list[dict]) -> list[Finding]:
 
 
 def _verdict(score: int) -> tuple[str, str]:
+    # No "SUSPICIOUS, LOW confidence" tier: a low-confidence amber warning
+    # for a barely-above-zero score reads as alarming without being useful.
+    # Below the SUSPICIOUS floor, call it clean rather than hedge.
     if score >= 70:
         return "MALICIOUS", "HIGH"
     if score >= 45:
         return "MALICIOUS", "MEDIUM"
     if score >= 20:
         return "SUSPICIOUS", "MEDIUM"
-    if score >= 10:
-        return "SUSPICIOUS", "LOW"
     return "LIKELY CLEAN", "MEDIUM"
 
 

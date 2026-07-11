@@ -144,7 +144,7 @@
 
     <div class="panel lift" id="aiPanel" style="margin-bottom:20px;display:none;">
       <div class="panel-head">
-        <span class="panel-title">🛡️ AI Analyst</span>
+        <span class="panel-title">🛡️ Why This Verdict</span>
         <span class="chip" id="aiQuota" style="background:var(--primary-wash);color:var(--primary);"></span>
       </div>
       <div class="panel-body">
@@ -264,6 +264,16 @@ $("analyze").onclick = async () => {
   }
 };
 
+/* The one verdict badge on the page. Returns the bad/warn/ok severity so
+   callers (chain connector coloring) don't recompute it separately. */
+function updateVerdictBadge(verdict, confidence){
+  const sev = verdict === "MALICIOUS" ? "bad" : verdict === "SUSPICIOUS" ? "warn" : "ok";
+  const v = $("verdict");
+  v.className = `stamp ${sev}`;
+  v.textContent = `● ${verdict} · ${confidence} CONFIDENCE`;
+  return sev;
+}
+
 /* Escape the preview, then wrap every scanner highlight (pressure phrases,
    flagged links, brand lures) in a <mark> so the evidence is visible in place. */
 function highlightPreview(text, highlights){
@@ -290,16 +300,12 @@ function render(c){
   $("aiBtn").disabled = false;
   $("aiBtn").textContent = "Retry AI analysis →";
   if (c.ai_opinion) {
-    // The AI analysis ran as part of this scan; c.uses_left already
-    // reflects it (set on the scan response, not a separate counter).
-    showAiOpinion({...c.ai_opinion, uses_left: c.uses_left});
+    // The AI analysis ran as part of this scan and its verdict is already
+    // what c.verdict/c.confidence hold below, not a second result.
+    showAiOpinion(c.ai_opinion, c.uses_left);
   }
 
-  const sev = c.verdict === "MALICIOUS" ? "bad"
-            : c.verdict === "SUSPICIOUS" ? "warn" : "ok";
-  const v = $("verdict");
-  v.className = `stamp ${sev}`;
-  v.textContent = `● ${c.verdict} · ${c.confidence} CONFIDENCE`;
+  const sev = updateVerdictBadge(c.verdict, c.confidence);
   $("scoreLabel").textContent = `RISK ${c.score}/100`;
 
   const authLine = (label, result) => {
@@ -378,28 +384,21 @@ function quotaMessage(refreshAt){
   return `You're out of free scans for today. Your next one unlocks ${when}.`;
 }
 
-/* Render the AI's part of the scan results. */
-function showAiOpinion(data){
+/* Renders the AI's explanation of the (single) verdict already shown in
+   the badge above: no separate verdict chip here, since there's only
+   ever one result on the page. */
+function showAiOpinion(opinion, usesLeft){
   $("aiIntro").style.display = "none";
   const box = $("aiSummary");
-  const aiSev = data.verdict === "MALICIOUS" ? "bad"
-              : data.verdict === "SUSPICIOUS" ? "warn" : "ok";
-  const agree = data.agrees_with_scanner
-    ? `<span style="font-size:13px;color:var(--teal);font-weight:600;">✓ concurs with the scanner</span>`
-    : `<span style="font-size:13px;color:var(--amber);font-weight:600;">⚠ disagrees with the scanner, read why below</span>`;
   box.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-      <span class="chip ${aiSev}">AI VERDICT: ${esc(data.verdict)} · ${esc(data.confidence)}</span>
-      ${agree}
-    </div>
-    <div style="white-space:pre-wrap;">${esc(data.summary)}</div>
-    ${(data.actions || []).length ? `
-      <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">The analyst recommends:</div>
-      <ol class="advice">${data.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
+    <div style="white-space:pre-wrap;">${esc(opinion.summary)}</div>
+    ${(opinion.actions || []).length ? `
+      <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">Specific to this case:</div>
+      <ol class="advice">${opinion.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
   box.style.display = "block";
-  if (typeof data.uses_left === "number") {
-    $("aiQuota").textContent = `${data.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
-    $("preQuota").textContent = `${data.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+  if (typeof usesLeft === "number") {
+    $("aiQuota").textContent = `${usesLeft} OF ${aiLimit} SCANS LEFT TODAY`;
+    $("preQuota").textContent = `${usesLeft} OF ${aiLimit} SCANS LEFT TODAY`;
   }
 }
 
@@ -417,8 +416,13 @@ $("aiBtn").onclick = async () => {
     const data = await r.json();
     if (!r.ok)
       throw new Error((data.detail && data.detail.message) || data.detail || r.statusText);
-    // Retrying doesn't spend a scan, so keep the current uses_left as-is.
-    showAiOpinion({...data, uses_left: currentCase.uses_left});
+    // The original scan never got an AI opinion (that's why this button
+    // was visible), so this retry's verdict becomes the shown one now,
+    // same as the automatic path. Retrying doesn't spend a scan.
+    currentCase.verdict = data.verdict;
+    currentCase.confidence = data.confidence;
+    updateVerdictBadge(data.verdict, data.confidence);
+    showAiOpinion(data, currentCase.uses_left);
   } catch (e) {
     $("aiError").textContent = e.message;
     btn.disabled = false; btn.textContent = "Retry AI analysis →";

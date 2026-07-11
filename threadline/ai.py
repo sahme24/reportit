@@ -16,45 +16,46 @@ import anthropic
 _MODEL = os.environ.get("REPORTIT_AI_MODEL", "claude-haiku-4-5")
 
 _SYSTEM = """You are the AI analyst inside ReportIT.ai, an open-source phishing
-and smishing investigation tool for everyday people. You receive the results
-of an automated heuristic scan and act as an INDEPENDENT second opinion in an
-ensemble: judge the evidence yourself, then explain it to someone with no
-security background.
+and smishing investigation tool for everyday people. Every scan is a single
+pass: automated heuristics gather the evidence, and your verdict is what the
+person actually sees. There is no separate "heuristic verdict" shown next to
+yours, so weigh the evidence yourself rather than defaulting to whatever the
+raw score implies.
 
 Rules:
-- Form your own verdict from the evidence. Agree with the scanner only if the
-  evidence supports it; if the scanner over- or under-reacted (e.g. auth
-  failures caused by forwarding, or a lure the heuristics missed), say so.
+- Judge the evidence on its merits. A high score driven by auth failures that
+  are explained by forwarding, or a low score that misses a lure the
+  heuristics didn't catch, both mean the raw score is wrong. Call it as you
+  actually see it.
 - Plain English, no jargon without a one-phrase explanation.
 - Reference the strongest 2-3 pieces of evidence in the summary.
 - Never include clickable URLs; keep all indicators defanged exactly as given.
-- Actions: 2-4 concrete steps for this specific case (delete it, report to
-  reportphishing@apwg.org / forward texts to 7726, change a password ONLY via
-  the official site typed by hand). No generic filler.
+- Actions: 2-4 concrete, case-specific steps (not generic filler). These
+  supplement the standard verdict-based advice already shown, so focus on
+  what's specific to this message, e.g. how to verify a claimed shipment or
+  account independently.
 - If the message is LIKELY CLEAN, say so plainly. Do not invent danger.
 - Write like a person typing quickly, not a press release. Use commas,
   periods, and colons for pacing. Never use an em dash (—) anywhere in your
   response.
 - Summary: 80-160 words, short paragraphs, no markdown headers."""
 
-# Structured second opinion: the ensemble output the UI renders.
+# The verdict/confidence here become THE case's verdict/confidence (the
+# caller overwrites the heuristic ones), not a second opinion shown
+# alongside them, so there's only ever one result on screen.
 _SCHEMA = {
     "type": "object",
     "properties": {
         "verdict": {"type": "string",
                     "enum": ["MALICIOUS", "SUSPICIOUS", "LIKELY CLEAN"],
-                    "description": "Your independent verdict on the message."},
+                    "description": "Your verdict on the message, weighing all evidence."},
         "confidence": {"type": "string", "enum": ["HIGH", "MEDIUM", "LOW"]},
-        "agrees_with_scanner": {
-            "type": "boolean",
-            "description": "Whether your verdict matches the heuristic scanner's."},
         "summary": {"type": "string",
                     "description": "Plain-English explanation for the recipient."},
         "actions": {"type": "array", "items": {"type": "string"},
-                    "description": "2-4 concrete next steps for this case."},
+                    "description": "2-4 concrete next steps specific to this case."},
     },
-    "required": ["verdict", "confidence", "agrees_with_scanner",
-                 "summary", "actions"],
+    "required": ["verdict", "confidence", "summary", "actions"],
     "additionalProperties": False,
 }
 
@@ -89,8 +90,9 @@ def _case_brief(case: dict) -> str:
 
 
 def analyze_case(case: dict) -> dict:
-    """Return the AI analyst's structured second opinion:
-    {verdict, confidence, agrees_with_scanner, summary, actions}.
+    """Return the AI analyst's read of the case: {verdict, confidence,
+    summary, actions}. The caller uses verdict/confidence as THE case's
+    final verdict, not a second one shown alongside the heuristic score.
     Raises on API errors; the web layer maps those to friendly responses."""
     client = anthropic.Anthropic()
     # No thinking/effort params: Haiku 4.5 doesn't support them, and omitting
@@ -104,15 +106,13 @@ def analyze_case(case: dict) -> dict:
         system=_SYSTEM,
         messages=[{
             "role": "user",
-            "content": "Give your independent second opinion on this scan, "
-                       "then explain it to the person who received the "
-                       "message:\n\n" + _case_brief(case),
+            "content": "Analyze this scan and explain it to the person who "
+                       "received the message:\n\n" + _case_brief(case),
         }],
     )
     if response.stop_reason == "refusal":
         return {
             "verdict": case["verdict"], "confidence": "LOW",
-            "agrees_with_scanner": True,
             "summary": ("The AI analyst declined to review this case. The "
                         "scan findings above still stand on their own."),
             "actions": [],

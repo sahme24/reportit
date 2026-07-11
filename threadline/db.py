@@ -252,29 +252,3 @@ def user_stats(user_id: int) -> dict:
         "sms": kinds.get("sms", 0),
         "last_scan_at": last["created_at"] if last else None,
     }
-
-
-def admin_stats() -> dict:
-    with _connect() as conn:
-        verdicts = {r["verdict"]: r["c"] for r in conn.execute(
-            "SELECT verdict, COUNT(*) c FROM scans GROUP BY verdict")}
-        days = [dict(r) for r in conn.execute(
-            "SELECT substr(created_at, 1, 10) day, COUNT(*) c FROM scans"
-            " WHERE created_at > datetime('now', '-14 days')"
-            " GROUP BY day ORDER BY day")]
-        signups = [dict(r) for r in conn.execute(
-            "SELECT substr(created_at, 1, 10) day, COUNT(*) c FROM users"
-            " WHERE created_at > datetime('now', '-14 days')"
-            " GROUP BY day ORDER BY day")]
-        recent_users = [dict(r) for r in conn.execute(
-            "SELECT u.name, u.email, u.created_at,"
-            " (SELECT COUNT(*) FROM scans s WHERE s.user_id = u.id) scan_count"
-            " FROM users u ORDER BY u.id DESC LIMIT 20")]
-        recent_scans = [dict(r) for r in conn.execute(
-            "SELECT s.case_id, s.verdict, s.score, s.from_addr, s.kind,"
-            " s.created_at, u.email"
-            " FROM scans s LEFT JOIN users u ON u.id = s.user_id"
-            " ORDER BY s.id DESC LIMIT 20")]
-    return {**public_stats(), "verdicts": verdicts, "scans_by_day": days,
-            "signups_by_day": signups, "recent_users": recent_users,
-            "recent_scans": recent_scans}

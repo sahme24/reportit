@@ -40,7 +40,8 @@ setup, live on the web.
 - **Google-only sign-in:** no passwords stored, ever; your case history is
   saved to your account and repeat offenders (same sender/domain across
   cases) are flagged automatically
-- **Admin dashboard:** user growth, scans per day, verdict breakdown
+- **Personal dashboard:** your own scan totals, threats caught, and case
+  history, plus the instance's community-wide numbers
 - **Light & dark themes:** clean SaaS light or deep-navy dark
 - **CLI included:** everything works from the terminal too
 
@@ -55,7 +56,6 @@ cp .env.example .env   # then add your Google OAuth credentials (below)
 # web app
 uvicorn app:app
 # then open http://127.0.0.1:8000
-# the first account that signs in becomes the admin, so sign in first
 
 # or straight from the terminal (no account needed)
 python -m threadline samples/phish-0ffice365.eml
@@ -107,11 +107,15 @@ text wasn't checked.
 ## AI analyst (optional)
 
 With an [Anthropic API key](https://platform.claude.com) in `.env`, every
-scan **is** the AI analyst, not an add-on to it: the heuristic toolset and
-an independent AI analysis run together in one pass and come back as a
-single result, its own verdict plus an agreement flag against the
-automated findings, a plain-English explanation, and what-to-do-next steps
-(an "Explain this case" button retries just the AI portion for free, e.g.
+scan **is** the AI analyst, not an add-on to it: the heuristic toolset
+gathers the evidence, and the AI's verdict on that evidence becomes the
+case's verdict, the one thing shown, not a second opinion that can
+contradict a separate heuristic badge. The heuristic score still exists
+under the hood as one more piece of evidence for the AI to weigh, and the
+"What You Should Do" list is recomputed to match whatever verdict the AI
+lands on, so there's one verdict, one advice list, one result. A plain-
+English explanation and case-specific extra steps come with it (an
+"Explain this case" button retries just the AI portion for free, e.g.
 after a transient API hiccup, without spending another scan). The analyst
 only sees the scan results (links defanged); it never visits anything.
 
@@ -141,7 +145,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 | History | Repeat senders/domains across this instance's previous cases |
 | SMS (smishing) | Brand-name lures pointing at unofficial domains, gateway/full-number senders, pressure language, all URL checks |
 | Images (OCR) | Links and pressure language hidden inside attached/inline images, extracted with Tesseract, then run through every URL check |
-| AI ensemble | Independent second-opinion verdict on every scan (agrees or disagrees with the heuristics), plain-English summary, tailored actions |
+| AI analysis | Weighs every finding above to produce the case's one verdict, plus a plain-English summary and case-specific extra steps |
 
 ## Threat-intel keys (optional)
 
@@ -183,7 +187,7 @@ threadline/         the investigation engine
   db.py             SQLite: users, sessions, scan history
   cli.py            terminal interface
 app.py              FastAPI backend (pages + JSON API)
-static/             web UI: landing, auth, scanner, history, admin dashboard
+static/             web UI: landing, auth, scanner, history, dashboard
 samples/            sanitized test emails (one phish, one clean)
 ```
 

@@ -13,8 +13,14 @@ from threadline import db  # noqa: E402
 client = TestClient(app_module.app)
 
 
+_next_user = iter(range(10_000))
+
+
 def _signed_in_client() -> TestClient:
-    user = db.upsert_google_user("tester@example.com", "Tester", "sub-123")
+    """Fresh account per call so AI-quota tests can't leak usage into each
+    other via a shared user, the way they would with one fixed email."""
+    n = next(_next_user)
+    user = db.upsert_google_user(f"tester{n}@example.com", "Tester", f"sub-{n}")
     token = db.create_session(user["id"])
     c = TestClient(app_module.app)
     c.cookies.set("threadline_session", token)
@@ -45,6 +51,35 @@ def test_scan_roundtrip_and_history():
     assert history and history[0]["case_id"] == case["case_id"]
 
 
+def test_ai_verdict_replaces_heuristic_verdict(monkeypatch):
+    """There's one result, not two: when the AI's read differs from the
+    heuristic score's, the AI verdict becomes the case's verdict (and the
+    advice list is recomputed to match), not a second opinion shown next
+    to a conflicting top-level badge."""
+    c = _signed_in_client()
+    monkeypatch.setattr(app_module.ai, "is_configured", lambda: True)
+    monkeypatch.setattr(app_module.ai, "analyze_case", lambda case: {
+        "verdict": "LIKELY CLEAN", "confidence": "HIGH",
+        "summary": "stub", "actions": ["check it yourself"]})
+
+    # This sample is heuristically MALICIOUS; the mocked AI disagrees.
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+    r = c.post("/api/scan", json={"raw": raw})
+    assert r.status_code == 200
+    case = r.json()
+
+    assert case["verdict"] == "LIKELY CLEAN"
+    assert case["confidence"] == "HIGH"
+    # The AI-side payload carries explanation only, not a rival verdict.
+    assert "verdict" not in case["ai_opinion"]
+    assert case["ai_opinion"]["summary"] == "stub"
+    # Advice matches the FINAL verdict, not the original heuristic one.
+    assert case["recommendations"]
+    assert not any("don't click" in s.lower() for s in case["recommendations"])
+    # The report's own verdict line and the AI section both reflect it too.
+    assert "LIKELY CLEAN" in case["report_markdown"]
+
+
 def test_scan_quota_enforced(monkeypatch):
     """There's one scan action (heuristics + AI together), not a separate
     'unlimited scans, limited AI' split -- the daily cap gates the scan
@@ -53,13 +88,13 @@ def test_scan_quota_enforced(monkeypatch):
     monkeypatch.setattr(app_module.ai, "is_configured", lambda: True)
     monkeypatch.setattr(app_module.ai, "analyze_case", lambda case: {
         "verdict": "MALICIOUS", "confidence": "HIGH",
-        "agrees_with_scanner": True, "summary": "stub", "actions": []})
+        "summary": "stub", "actions": []})
 
     raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
     allowed = [c.post("/api/scan", json={"raw": raw})
                for _ in range(app_module._AI_DAILY_LIMIT)]
     assert all(r.status_code == 200 for r in allowed)
-    assert all(r.json()["ai_opinion"]["verdict"] == "MALICIOUS" for r in allowed)
+    assert all(r.json()["verdict"] == "MALICIOUS" for r in allowed)
     assert allowed[-1].json()["uses_left"] == 0
 
     blocked = c.post("/api/scan", json={"raw": raw})
@@ -82,7 +117,7 @@ def test_explain_retry_does_not_spend_quota(monkeypatch):
     monkeypatch.setattr(app_module.ai, "is_configured", lambda: True)
     monkeypatch.setattr(app_module.ai, "analyze_case", lambda case: {
         "verdict": "MALICIOUS", "confidence": "HIGH",
-        "agrees_with_scanner": True, "summary": "stub", "actions": []})
+        "summary": "stub", "actions": []})
 
     payload = {"case": {"verdict": "MALICIOUS"}}
     responses = [c.post("/api/explain", json=payload)
