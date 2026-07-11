@@ -28,6 +28,11 @@ steps:
       - --max-instances=1
       - --add-volume=name=data,type=cloud-storage,bucket=${PROJECT_ID}-reportit-data
       - --add-volume-mount=volume=data,mount-path=/data
+      # Firebase Hosting (reportit-ai.web.app) proxies to this service. The
+      # OAuth callback must be pinned here too, or it falls back to
+      # whatever host Cloud Run sees the request on and sign-in breaks --
+      # see app.py's canonicalize_host middleware for the full story.
+      - --set-env-vars=OAUTH_REDIRECT_URL=https://reportit-ai.web.app/auth/google/callback
       - --set-secrets=GOOGLE_CLIENT_ID=reportit-google-client-id:latest,GOOGLE_CLIENT_SECRET=reportit-google-client-secret:latest,ANTHROPIC_API_KEY=reportit-anthropic-key:latest,VT_API_KEY=reportit-vt-key:latest,ABUSEIPDB_API_KEY=reportit-abuseipdb-key:latest,URLHAUS_API_KEY=reportit-urlhaus-key:latest
       - --quiet
 
