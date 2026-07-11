@@ -54,7 +54,7 @@ const ReportIT = {
 
     const banner = localStorage.getItem("reportit-banner") === "off" ? "" : `
       <div class="announce">
-        New! Every scan now includes an AI second opinion and reads text
+        New! Every scan now runs a built-in AI analysis and reads text
         hidden inside images.
         <button class="dismiss" aria-label="Dismiss" onclick="ReportIT.dismissBanner()">✕</button>
       </div>`;

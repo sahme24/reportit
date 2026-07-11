@@ -49,7 +49,7 @@
       <div class="num" id="uClean" style="color:var(--teal);">-</div>
     </div>
     <div class="panel tile">
-      <div class="lab">AI Analyses Left</div>
+      <div class="lab">Free Scans Left Today</div>
       <div class="num" id="uAi">-</div>
       <div class="sub" id="uAiSub"></div>
     </div>
@@ -109,7 +109,7 @@ ReportIT.topbar("/dashboard").then(async user => {
   set("uThreatsSub", `${s.malicious} malicious, ${s.suspicious} suspicious`);
   set("uClean", fmt(s.clean));
   if (!s.ai_enabled) {
-    set("uAi", "-"); set("uAiSub", "not enabled on this server");
+    set("uAi", "∞"); set("uAiSub", "AI not enabled on this server");
   } else {
     set("uAi", `${s.ai_uses_left} / ${s.ai_limit}`);
     set("uAiSub", s.ai_uses_left === 0 && s.ai_refresh_at

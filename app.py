@@ -187,32 +187,25 @@ def _sms_enrichment(sender: str, urls) -> list[Finding]:
     return _sightings_finding(sender.strip().lower(), urls)
 
 
-def _attach_ai_opinion(user_id: int, result: dict) -> None:
-    """Run the AI second opinion as part of the scan (ensemble mode).
+def _attach_ai_opinion(result: dict) -> None:
+    """Adds the AI's independent read to an already-completed scan.
 
-    Quota-aware and fail-soft: no key, no quota left, or an API error all
-    leave the heuristic result standing on its own.
+    Fails soft: an API hiccup just leaves the heuristic findings standing
+    alone. The scan itself was already counted against today's quota by
+    the caller in api_scan, regardless of whether this succeeds, since
+    there's one scan action here (heuristics + AI together), not two.
     """
-    if not ai.is_configured():
-        return
-    used, refresh_at = db.ai_usage(user_id)
-    if used >= _AI_DAILY_LIMIT:
-        result["ai_quota_exhausted"] = True
-        result["ai_refresh_at"] = refresh_at
-        return
     try:
         opinion = ai.analyze_case(result)
     except Exception:
         return  # heuristics stand alone; the manual button can retry
-    db.record_ai_use(user_id)
-    opinion["uses_left"] = _AI_DAILY_LIMIT - used - 1
     result["ai_opinion"] = opinion
     result["report_markdown"] += (
-        "\n## AI Analyst Second Opinion\n\n"
+        "\n## AI Analysis\n\n"
         f"**AI verdict:** {opinion['verdict']} ({opinion['confidence']} "
         "confidence), and it "
         + ("agrees" if opinion["agrees_with_scanner"] else "**disagrees**")
-        + " with the heuristic scanner.\n\n"
+        + " with the automated findings.\n\n"
         + opinion["summary"] + "\n")
 
 
@@ -220,6 +213,24 @@ def _attach_ai_opinion(user_id: int, result: dict) -> None:
 def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
     if not req.raw.strip():
         raise HTTPException(status_code=400, detail="Paste a message first.")
+
+    # Every online scan runs the full toolset plus the AI analysis as one
+    # unit, so the daily quota gates the scan itself, not a separate "AI
+    # opinion" add-on. Offline mode (no network/AI at all) stays unmetered.
+    ai_enabled = ai.is_configured() and not req.offline
+    used = 0
+    if ai_enabled:
+        used, refresh_at = db.ai_usage(user["id"])
+        if used >= _AI_DAILY_LIMIT:
+            # Frontend renders refresh_at in the user's local time,
+            # Claude/ChatGPT-style ("more scans at 3:45 PM").
+            raise HTTPException(
+                status_code=429,
+                detail={"message": f"You've used your {_AI_DAILY_LIMIT} free "
+                                   "scans for today. Each one frees up 24 "
+                                   "hours after it ran.",
+                        "refresh_at": refresh_at})
+
     if req.kind == "sms":
         case = scan_sms(req.raw, sender=req.sender, offline=req.offline,
                         enrich=_sms_enrichment)
@@ -227,8 +238,12 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
         case = scan(req.raw, offline=req.offline, enrich=_email_enrichment)
     result = case.to_dict()
     result["report_markdown"] = markdown_report(case)
-    if not req.offline:
-        _attach_ai_opinion(user["id"], result)
+
+    if ai_enabled:
+        db.record_ai_use(user["id"])
+        _attach_ai_opinion(result)
+        result["uses_left"] = max(_AI_DAILY_LIMIT - used - 1, 0)
+
     db.record_scan(user["id"], result)
     return result
 
@@ -282,26 +297,16 @@ class ExplainRequest(BaseModel):
 
 @app.post("/api/explain")
 def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict:
+    """Retries the AI portion of an already-scanned case, e.g. after a
+    transient API hiccup during the original scan. Doesn't touch the daily
+    quota: that's spent once when the scan itself runs, not per AI call."""
     if not ai.is_configured():
         raise HTTPException(
             status_code=503,
             detail="The AI analyst isn't configured on this server. Add an "
                    "ANTHROPIC_API_KEY to .env to enable it.")
-    used, refresh_at = db.ai_usage(user["id"])
-    if used >= _AI_DAILY_LIMIT:
-        # The frontend renders refresh_at in the user's local time,
-        # Claude/ChatGPT-style ("more analyses at 3:45 PM").
-        raise HTTPException(
-            status_code=429,
-            detail={"message": f"You've used your {_AI_DAILY_LIMIT} free AI "
-                               "analyses. Each one frees up 24 hours after "
-                               "it was used.",
-                    "refresh_at": refresh_at})
     try:
-        result = ai.analyze_case(req.case)
-        db.record_ai_use(user["id"])
-        result["uses_left"] = _AI_DAILY_LIMIT - used - 1
-        return result
+        return ai.analyze_case(req.case)
     except anthropic.RateLimitError:
         raise HTTPException(status_code=429,
                             detail="The AI analyst is busy. Try again in a "

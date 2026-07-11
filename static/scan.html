@@ -87,9 +87,12 @@
   <div id="intake" class="panel lift" style="margin-bottom:20px;">
     <div class="panel-head">
       <span class="panel-title" id="intakeTitle">Paste a suspicious email</span>
-      <div class="mode-tabs">
-        <button class="mtab active" id="modeEmail" onclick="setKind('email')">📧 Email</button>
-        <button class="mtab" id="modeSms" onclick="setKind('sms')">💬 Text (SMS)</button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="chip hidden" id="preQuota" style="background:var(--primary-wash);color:var(--primary);"></span>
+        <div class="mode-tabs">
+          <button class="mtab active" id="modeEmail" onclick="setKind('email')">📧 Email</button>
+          <button class="mtab" id="modeSms" onclick="setKind('sms')">💬 Text (SMS)</button>
+        </div>
       </div>
     </div>
     <div class="panel-body">
@@ -147,12 +150,11 @@
       <div class="panel-body">
         <div id="aiIntro" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <span style="color:var(--dim);font-size:14px;flex:1;min-width:220px;">
-            The AI second opinion runs automatically with each scan. If it
-            didn't load, ask again here. The analyst forms its own verdict
-            from the evidence and only sees the scan results (links stay
-            defanged).
+            The AI analysis is part of this scan and normally appears
+            automatically. It didn't come through this time, likely a
+            momentary hiccup. Retrying won't use another scan.
           </span>
-          <button class="btn primary" id="aiBtn">Explain this case →</button>
+          <button class="btn primary" id="aiBtn">Retry AI analysis →</button>
         </div>
         <div id="aiSummary" style="display:none;font-size:14.5px;line-height:1.8;color:var(--ink);"></div>
         <div class="form-error" id="aiError"></div>
@@ -203,10 +205,19 @@ ReportIT.topbar("/scan").then(user => {
 });
 
 let aiEnabled = false, aiLimit = 3;
-fetch("/api/config").then(r => r.json()).then(cfg => {
+fetch("/api/config").then(r => r.json()).then(async cfg => {
   aiEnabled = cfg.ai;
   aiLimit = cfg.ai_daily_limit || 3;
-  $("aiQuota").textContent = `${aiLimit} FREE ANALYSES / 24H`;
+  if (!aiEnabled) return;
+  // Show the remaining count before scanning too, since a scan can now
+  // actually be refused once the daily quota is spent.
+  try {
+    const s = await (await fetch("/api/my/stats")).json();
+    if (typeof s.ai_uses_left === "number") {
+      $("preQuota").textContent = `${s.ai_uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+      $("preQuota").classList.remove("hidden");
+    }
+  } catch {}
 });
 
 async function loadSample(name){
@@ -236,9 +247,16 @@ $("analyze").onclick = async () => {
     });
     if (r.status === 401) { location.href = "/login?next=/scan"; return; }
     const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || r.statusText);
+    if (r.status === 429 && data.detail && data.detail.refresh_at !== undefined)
+      throw new Error(quotaMessage(data.detail.refresh_at));
+    if (!r.ok)
+      throw new Error((data.detail && data.detail.message) || data.detail || r.statusText);
     currentCase = data;
     render(currentCase);
+    if (typeof data.uses_left === "number") {
+      $("preQuota").textContent = `${data.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+      $("preQuota").classList.remove("hidden");
+    }
   } catch (e) {
     $("error").textContent = "Scan failed: " + e.message;
   } finally {
@@ -270,13 +288,11 @@ function render(c){
   $("aiSummary").style.display = "none";
   $("aiError").textContent = "";
   $("aiBtn").disabled = false;
-  $("aiBtn").textContent = "Explain this case →";
+  $("aiBtn").textContent = "Retry AI analysis →";
   if (c.ai_opinion) {
-    // Ensemble mode: the second opinion ran as part of the scan.
-    showAiOpinion(c.ai_opinion);
-  } else if (c.ai_quota_exhausted) {
-    $("aiIntro").style.display = "none";
-    $("aiError").textContent = quotaMessage(c.ai_refresh_at);
+    // The AI analysis ran as part of this scan; c.uses_left already
+    // reflects it (set on the scan response, not a separate counter).
+    showAiOpinion({...c.ai_opinion, uses_left: c.uses_left});
   }
 
   const sev = c.verdict === "MALICIOUS" ? "bad"
@@ -351,7 +367,7 @@ function render(c){
   }).join("");
 }
 
-/* "You're out of free analyses, more at 3:45 PM" (user's local time). */
+/* "You're out of free scans, more at 3:45 PM" (user's local time). */
 function quotaMessage(refreshAt){
   let when = "in a bit";
   if (refreshAt) {
@@ -359,12 +375,10 @@ function quotaMessage(refreshAt){
     const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     when = d.toDateString() === new Date().toDateString() ? `at ${t}` : `at ${t} tomorrow`;
   }
-  return `You're out of free AI analyses. Your next one unlocks ${when}. ` +
-         "Scans, findings, and next steps stay unlimited.";
+  return `You're out of free scans for today. Your next one unlocks ${when}.`;
 }
 
-/* Render the AI second opinion. Used both when it arrives with the scan
-   (ensemble mode) and when the user clicks the button as a retry. */
+/* Render the AI's part of the scan results. */
 function showAiOpinion(data){
   $("aiIntro").style.display = "none";
   const box = $("aiSummary");
@@ -383,8 +397,10 @@ function showAiOpinion(data){
       <div style="font-weight:700;font-size:13px;margin:14px 0 4px;color:var(--ink);">The analyst recommends:</div>
       <ol class="advice">${data.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ol>` : ""}`;
   box.style.display = "block";
-  if (typeof data.uses_left === "number")
-    $("aiQuota").textContent = `${data.uses_left} OF ${aiLimit} LEFT TODAY`;
+  if (typeof data.uses_left === "number") {
+    $("aiQuota").textContent = `${data.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+    $("preQuota").textContent = `${data.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+  }
 }
 
 $("aiBtn").onclick = async () => {
@@ -399,14 +415,13 @@ $("aiBtn").onclick = async () => {
       body: JSON.stringify({case: currentCase}),
     });
     const data = await r.json();
-    if (r.status === 429 && data.detail && data.detail.refresh_at !== undefined)
-      throw new Error(quotaMessage(data.detail.refresh_at));
     if (!r.ok)
       throw new Error((data.detail && data.detail.message) || data.detail || r.statusText);
-    showAiOpinion(data);
+    // Retrying doesn't spend a scan, so keep the current uses_left as-is.
+    showAiOpinion({...data, uses_left: currentCase.uses_left});
   } catch (e) {
     $("aiError").textContent = e.message;
-    btn.disabled = false; btn.textContent = "Explain this case →";
+    btn.disabled = false; btn.textContent = "Retry AI analysis →";
   }
 };
 

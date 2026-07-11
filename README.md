@@ -30,10 +30,10 @@ setup, live on the web.
 - **"What you should do" on every case:** concrete, verdict-specific next
   steps (report to 7726 / reportphishing@apwg.org, block, password advice) in
   the UI, the CLI, and the exported report
-- **AI ensemble in every scan:** an independent AI second opinion runs
-  automatically with each scan, with its own verdict that confirms or
-  challenges the heuristic scanner, a plain-English explanation, and
-  tailored actions
+- **AI baked into every scan:** the heuristic toolset and an independent
+  AI analysis run together as one pass, not as separate features, the AI
+  forms its own verdict that confirms or challenges the automated findings,
+  plus a plain-English explanation and tailored actions
 - **OCR for image-based phishing:** links and pressure language hidden
   inside attached or inline images are extracted with Tesseract and run
   through the same URL/urgency/reputation checks
@@ -106,17 +106,21 @@ text wasn't checked.
 
 ## AI analyst (optional)
 
-With an [Anthropic API key](https://platform.claude.com) in `.env`, an
-independent AI second opinion **runs automatically as part of every scan**:
-its own verdict plus an agreement flag against the heuristic scanner, a
-plain-English explanation, and what-to-do-next steps (an "Explain this
-case" button covers retries). The analyst only sees the scan results
-(links defanged); it never visits anything.
+With an [Anthropic API key](https://platform.claude.com) in `.env`, every
+scan **is** the AI analyst, not an add-on to it: the heuristic toolset and
+an independent AI analysis run together in one pass and come back as a
+single result, its own verdict plus an agreement flag against the
+automated findings, a plain-English explanation, and what-to-do-next steps
+(an "Explain this case" button retries just the AI portion for free, e.g.
+after a transient API hiccup, without spending another scan). The analyst
+only sees the scan results (links defanged); it never visits anything.
 
 Costs stay predictable: the default model is Claude Haiku (the cheapest
-tier) and each user gets **3 analyses per rolling 24 hours.** Each use
-frees up exactly 24 hours after it happened, and the UI tells the user the
-local time their next one unlocks, the same way Claude and ChatGPT do it.
+tier) and each user gets **3 scans per rolling 24 hours.** Each use frees
+up exactly 24 hours after it happened, and the UI tells the user the local
+time their next one unlocks, the same way Claude and ChatGPT do it. With no
+`ANTHROPIC_API_KEY` set, this cap doesn't apply and scanning is unlimited,
+just without the AI portion.
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
