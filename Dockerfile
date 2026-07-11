@@ -24,4 +24,12 @@ VOLUME /data
 EXPOSE 8080
 # Cloud Run injects $PORT (defaults to 8080) and expects the container to
 # listen on it; the shell form lets that env var expand at start time.
-CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}
+#
+# Cloud Run's proxy terminates TLS and forwards to the container over plain
+# HTTP, setting X-Forwarded-Proto: https. Without --proxy-headers, uvicorn
+# ignores that and app.py's request.base_url comes back as http://, which
+# breaks the Google OAuth redirect_uri (it'll never match a registered
+# https:// URI). --forwarded-allow-ips='*' is safe here specifically because
+# Cloud Run's ingress means only its own proxy can ever reach this container.
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080} \
+    --proxy-headers --forwarded-allow-ips='*'
