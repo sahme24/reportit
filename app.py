@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import secrets
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import anthropic
 import requests as http
@@ -39,6 +39,34 @@ SAMPLES = Path(__file__).parent / "samples"
 
 db.init_db()
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+# The one public domain this app should ever be used from (Firebase Hosting
+# proxies to Cloud Run). Derived from OAUTH_REDIRECT_URL so it's unset -- and
+# this redirect a no-op -- in local dev.
+_CANONICAL_HOST = (
+    urlparse(os.environ["OAUTH_REDIRECT_URL"]).hostname
+    if os.environ.get("OAUTH_REDIRECT_URL") else None
+)
+
+
+@app.middleware("http")
+async def canonicalize_host(request: Request, call_next):
+    """Redirect any request that didn't arrive via the canonical domain
+    before it reaches a route. Without this, someone who lands on the raw
+    Cloud Run URL gets their OAuth state cookie scoped to *that* origin,
+    but Google then sends them back to the callback pinned at
+    OAUTH_REDIRECT_URL -- a different origin -- so the cookie never comes
+    back and sign-in fails with a state mismatch."""
+    if _CANONICAL_HOST:
+        host = (request.headers.get("x-forwarded-host")
+               or request.url.hostname or "").split(",")[0].strip()
+        if host and host != _CANONICAL_HOST:
+            target = f"https://{_CANONICAL_HOST}{request.url.path}"
+            if request.url.query:
+                target += f"?{request.url.query}"
+            return RedirectResponse(target, status_code=307)
+    return await call_next(request)
+
 
 _COOKIE = "threadline_session"
 _STATE_COOKIE = "reportit_oauth_state"
