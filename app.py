@@ -91,7 +91,11 @@ def auth_google(request: Request) -> RedirectResponse:
         "response_type": "code",
         "scope": "openid email profile",
         "state": state,
-        "prompt": "select_account",
+        # No "prompt" param: forcing select_account makes Google show its
+        # full account-chooser screen (every signed-in Google identity in
+        # the browser, name + email) on every login. Without it, Google
+        # silently uses the browser's existing session when there's only
+        # one, which is what most people expect from "Sign in with Google".
     })
     response = RedirectResponse(f"{_GOOGLE_AUTH_URL}?{params}")
     response.set_cookie(_STATE_COOKIE, state, max_age=600,
