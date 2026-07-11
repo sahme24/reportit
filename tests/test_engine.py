@@ -98,6 +98,20 @@ def test_report_includes_advice_and_defanged_urls():
     assert "https://0ffice365-secure.com" not in report, "URLs must be defanged"
 
 
+def test_report_checklist_is_filled_and_message_excerpt_defanged():
+    case = _scan_sample("phish-0ffice365.eml")
+    report = markdown_report(case, reporter={"name": "Jane Doe",
+                                             "email": "jane@example.com"})
+    for heading in ("Message Details", "What They Claimed", "Red Flags Noted",
+                    "Reporter Info", "## 5. Impact", "Additional Context"):
+        assert heading in report
+    assert "Jane Doe" in report and "jane@example.com" in report
+    # The message excerpt embeds the phishing link verbatim in the raw
+    # body; it must come out defanged like every other URL in the report.
+    assert "https://0ffice365-secure.com" not in report
+    assert "hxxps://0ffice365-secure[.]com" in report
+
+
 # -------------------------------------------------------------------- advice
 
 def test_advice_is_verdict_specific():

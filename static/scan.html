@@ -161,6 +161,18 @@
       </div>
     </div>
 
+    <div class="panel" id="reportReadyBanner" style="margin-bottom:20px;display:none;background:var(--teal-wash);border-color:var(--teal);">
+      <div class="panel-body" style="display:flex;align-items:center;gap:12px;padding:14px 18px;">
+        <span style="font-size:20px;">📋</span>
+        <span style="font-size:13.5px;color:var(--ink);line-height:1.6;">
+          <b>This report is ready to submit.</b> The exported markdown below
+          includes a pre-filled checklist formatted for your bank's fraud
+          line, the CRA, or a fraud-reporting authority (e.g. the Canadian
+          Anti-Fraud Centre). Fill in the blanks, then attach it as-is.
+        </span>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="btn" id="newCase">New Case</button>
       <button class="btn" id="exportJson">Export JSON</button>
@@ -264,13 +276,15 @@ $("analyze").onclick = async () => {
   }
 };
 
-/* The one verdict badge on the page. Returns the bad/warn/ok severity so
-   callers (chain connector coloring) don't recompute it separately. */
+/* The one verdict badge on the page, plus everything that follows from it
+   (chain connector color, the "ready to report" banner). Returns the
+   bad/warn/ok severity so callers don't recompute it separately. */
 function updateVerdictBadge(verdict, confidence){
   const sev = verdict === "MALICIOUS" ? "bad" : verdict === "SUSPICIOUS" ? "warn" : "ok";
   const v = $("verdict");
   v.className = `stamp ${sev}`;
   v.textContent = `● ${verdict} · ${confidence} CONFIDENCE`;
+  $("reportReadyBanner").style.display = (sev === "bad" || sev === "warn") ? "" : "none";
   return sev;
 }
 

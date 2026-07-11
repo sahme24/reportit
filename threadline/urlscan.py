@@ -93,6 +93,18 @@ def refang(url: str) -> str:
     return url.replace("hxxp", "http").replace("[.]", ".").replace("[:]", ":")
 
 
+def defang_text(text: str) -> str:
+    """Defang every URL inside a free-text blob, e.g. a message excerpt
+    quoted into a report, without touching anything else in the text."""
+    def _defang_match(m: re.Match) -> str:
+        url = m.group(0)
+        host = _safe_urlparse(refang(url)).hostname or ""
+        if not host:
+            return url
+        return url.replace("http", "hxxp", 1).replace(host, _defang_host(host), 1)
+    return URL_RE.sub(_defang_match, text)
+
+
 def _deglyph(s: str) -> str:
     for fake, real in _HOMOGLYPHS:
         s = s.replace(fake, real)

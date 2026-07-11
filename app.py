@@ -231,13 +231,12 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
             case.recommendations = advice_for(case.kind, case.verdict, case.findings)
 
     result = case.to_dict()
-    result["report_markdown"] = markdown_report(case)
+    result["report_markdown"] = markdown_report(
+        case, reporter=user, ai_summary=opinion["summary"] if opinion else None)
     if opinion:
         result["ai_opinion"] = {"summary": opinion["summary"],
                                 "actions": opinion["actions"]}
         result["uses_left"] = max(_AI_DAILY_LIMIT - used - 1, 0)
-        result["report_markdown"] += (
-            "\n## Why This Verdict\n\n" + opinion["summary"] + "\n")
 
     db.record_scan(user["id"], result)
     return result
