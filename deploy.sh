@@ -15,6 +15,10 @@ set -e
 PROJECT_ID="exalted-pattern-502023-i8"
 REGION="us-central1"
 BUCKET="${PROJECT_ID}-reportit-data"
+# The public URL people actually use (Firebase Hosting proxies to Cloud
+# Run). Google's OAuth callback must land here, not on the raw *.run.app
+# URL, or signed-in users end up stuck on the Cloud Run domain.
+PUBLIC_URL="https://reportit-ai.web.app"
 
 echo "==> Using project: $PROJECT_ID"
 gcloud config set project "$PROJECT_ID" >/dev/null
@@ -115,10 +119,11 @@ MSYS2_ARG_CONV_EXCL="--add-volume" gcloud run deploy reportit \
   --min-instances=0 \
   --max-instances=1 \
   --add-volume=mount-path=/data,type=cloud-storage,bucket="$BUCKET",readonly=false \
+  --set-env-vars="OAUTH_REDIRECT_URL=${PUBLIC_URL}/auth/google/callback" \
   --set-secrets="$SECRETS"
 
 echo ""
-echo "==> Done. Copy the service URL printed above and add:"
-echo "    <that-url>/auth/google/callback"
-echo "    as an authorized redirect URI at:"
+echo "==> Done. Sign-in redirects to $PUBLIC_URL (not the raw Cloud Run URL)."
+echo "    Make sure this is an authorized redirect URI at:"
 echo "    https://console.cloud.google.com/apis/credentials"
+echo "        ${PUBLIC_URL}/auth/google/callback"
