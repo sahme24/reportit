@@ -1,0 +1,39 @@
+# Auto-deploy to Cloud Run on every push to main.
+#
+# This is the recurring half of the deploy story. It assumes the one-time
+# setup in deploy.sh already ran once by hand: the Cloud Storage bucket and
+# the Secret Manager secrets referenced below already exist. This build only
+# updates the running service, it never touches secrets or storage, so it's
+# safe to let it fire unattended on every push.
+#
+# One-time setup to wire this up (not done by this file):
+#   1. Cloud Build > Triggers > Connect Repository > select this GitHub repo
+#   2. Create a trigger: event = push to branch "^main$",
+#      configuration = this file (cloudbuild.yaml)
+#   3. Run setup-cicd.sh once to grant the Cloud Build service account
+#      permission to deploy to Cloud Run
+# See README.md's "Auto-deploy on push" section for the full walkthrough.
+
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - reportit
+      - --source=.
+      - --region=us-central1
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=1
+      - --add-volume=name=data,type=cloud-storage,bucket=${PROJECT_ID}-reportit-data
+      - --add-volume-mount=volume=data,mount-path=/data
+      - --set-secrets=GOOGLE_CLIENT_ID=reportit-google-client-id:latest,GOOGLE_CLIENT_SECRET=reportit-google-client-secret:latest,ANTHROPIC_API_KEY=reportit-anthropic-key:latest,VT_API_KEY=reportit-vt-key:latest,ABUSEIPDB_API_KEY=reportit-abuseipdb-key:latest,URLHAUS_API_KEY=reportit-urlhaus-key:latest
+      - --quiet
+
+# This deploy step itself invokes a nested Cloud Build (gcloud run deploy
+# --source builds the image via Cloud Build under the hood), so give it
+# generous headroom.
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY

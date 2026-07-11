@@ -273,11 +273,51 @@ Google sign-in section above for why both `localhost` and `127.0.0.1`
 variants matter for local testing). No code change is needed since
 `app.py` builds the callback URL from the incoming request's own host.
 
-**Redeploying:** re-run the same `gcloud run deploy` command, or wire it
-into the CI/CD pipeline once you're ready for continuous deployment (needs
-a GCP service account key or Workload Identity Federation stored as a
-GitHub secret, which is a manual setup step in your GCP project, not
-something this repo can provision on its own).
+**Redeploying manually:** re-run `./deploy.sh` (wraps steps 1–4 above, safe
+to run repeatedly). This deploys whatever's on disk in this folder, not
+whatever's on GitHub, so a push to GitHub does nothing to the live site on
+its own — see "Auto-deploy on push" below to close that gap.
+
+## Auto-deploy on push
+
+Once set up, every push to `main` rebuilds and redeploys automatically via
+[Cloud Build](https://console.cloud.google.com/cloud-build), using
+[`cloudbuild.yaml`](cloudbuild.yaml). This is separate from the GitHub
+Actions pipeline above (that one lints, tests, and builds a GHCR image for
+anyone self-hosting via Docker; this one deploys the actual Cloud Run
+service). Uses Cloud Build's native GitHub integration, not a service
+account key, so there's no long-lived credential to store as a GitHub
+secret.
+
+This is a one-time setup, done once the manual deploy above has run at
+least once (the bucket and secrets it creates are reused, not recreated,
+by every automatic deploy):
+
+**1. Connect the repo.** In the
+[Cloud Build console](https://console.cloud.google.com/cloud-build/triggers) →
+**Connect Repository** → **GitHub** → authorize the Cloud Build GitHub App
+→ select this repo. Since the repo is private, this needs to be done by
+someone with admin access to it.
+
+**2. Create the trigger.** **Create Trigger** →
+- Event: **Push to a branch**
+- Branch: `^main$`
+- Configuration: **Cloud Build configuration file**, location `cloudbuild.yaml`
+
+**3. Grant Cloud Build deploy permission.** Cloud Build's own service
+account needs permission to update the Cloud Run service and push images,
+which it doesn't have by default:
+
+```bash
+chmod +x setup-cicd.sh
+./setup-cicd.sh
+```
+
+From here, every push to `main` triggers a build automatically; watch it at
+the [Cloud Build history page](https://console.cloud.google.com/cloud-build/builds).
+Secrets and the storage bucket aren't touched by these automatic builds —
+if you rotate a key, update it with `gcloud secrets versions add` (or rerun
+`deploy.sh`, which is idempotent) rather than through the trigger.
 
 ## Contributing (collaborators)
 
