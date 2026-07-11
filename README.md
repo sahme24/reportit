@@ -278,6 +278,53 @@ to run repeatedly). This deploys whatever's on disk in this folder, not
 whatever's on GitHub, so a push to GitHub does nothing to the live site on
 its own — see "Auto-deploy on push" below to close that gap.
 
+## A shorter URL
+
+Cloud Run's auto-generated URL (`reportit-476314376398.us-central1.run.app`)
+can't be renamed or shortened directly. [`firebase.json`](firebase.json) sets
+up Firebase Hosting as a free reverse proxy in front of it instead, giving
+you `https://reportit-ai.web.app` (or whatever site ID you pick, subject to
+availability, since `web.app` subdomains are global) with the same backend
+and zero code changes, since `app.py` already builds all its URLs from
+whatever host actually served the request.
+
+**1. Add Firebase to the GCP project** (one-time, browser): go to
+[the Firebase console](https://console.firebase.google.com/), **Add
+project**, choose the existing GCP project (`exalted-pattern-502023-i8`)
+from the dropdown rather than creating a new one, skip Google Analytics.
+Firebase Hosting's Cloud Run integration needs the
+[Blaze plan](https://firebase.google.com/pricing) (pay-as-you-go), not the
+free Spark plan — you're already on a billing-enabled project from the
+Cloud Run setup, so this is just a plan toggle, not a new account.
+
+**2. Sign in and claim the site ID.** `firebase-tools` is already installed:
+
+```bash
+firebase login
+firebase hosting:sites:create reportit-ai --project exalted-pattern-502023-i8
+```
+
+If `reportit-ai` is taken, pick another id and update the `"site"` value in
+`firebase.json` to match.
+
+**3. Deploy:**
+
+```bash
+firebase deploy --only hosting
+```
+
+Firebase prints the live URL when it's done.
+
+**4. Register the new callback URL** in the
+[Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+add `https://reportit-ai.web.app/auth/google/callback` alongside the
+existing ones (the old `run.app` URL keeps working too — nothing needs to
+be removed).
+
+**Redeploying:** `firebase deploy --only hosting` again after any Cloud Run
+change (it just repoints the proxy; the Cloud Run service itself still
+deploys the normal way via `./deploy.sh` or the Cloud Build trigger).
+
 ## Auto-deploy on push
 
 Once set up, every push to `main` rebuilds and redeploys automatically via

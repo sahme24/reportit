@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "site": "reportit-ai",
+    "public": "public",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "reportit",
+          "region": "us-central1"
+        }
+      }
+    ]
+  }
+}
