@@ -23,7 +23,7 @@ def _signed_in_client() -> TestClient:
     user = db.upsert_google_user(f"tester{n}@example.com", "Tester", f"sub-{n}")
     token = db.create_session(user["id"])
     c = TestClient(app_module.app)
-    c.cookies.set("threadline_session", token)
+    c.cookies.set("__session", token)
     return c
 
 

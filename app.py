@@ -12,7 +12,6 @@ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.
 from __future__ import annotations
 
 import os
-import secrets
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
@@ -68,8 +67,10 @@ async def canonicalize_host(request: Request, call_next):
     return await call_next(request)
 
 
-_COOKIE = "threadline_session"
-_STATE_COOKIE = "reportit_oauth_state"
+# Firebase Hosting's rewrite to Cloud Run strips every request cookie
+# except one literally named "__session" -- this MUST be that name, or
+# nobody can stay signed in when the app is accessed via Firebase Hosting.
+_COOKIE = "__session"
 
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -91,8 +92,8 @@ def _redirect_uri(request: Request) -> str:
 # Auth plumbing
 # --------------------------------------------------------------------------
 
-def current_user(threadline_session: str = Cookie(default="")) -> dict | None:
-    return db.user_for_session(threadline_session)
+def current_user(session_cookie: str = Cookie(default="", alias=_COOKIE)) -> dict | None:
+    return db.user_for_session(session_cookie)
 
 
 def require_user(user: dict | None = Depends(current_user)) -> dict:
@@ -106,7 +107,10 @@ def auth_google(request: Request) -> RedirectResponse:
     """Kick off the Google OAuth 2.0 authorization-code flow."""
     if not _google_configured():
         return RedirectResponse("/login?error=not_configured")
-    state = secrets.token_urlsafe(24)
+    # Stored server-side, not in a cookie: Firebase Hosting strips every
+    # request cookie except "__session" before it reaches Cloud Run, so a
+    # second cookie here would never come back on the callback.
+    state = db.create_oauth_state()
     params = urlencode({
         "client_id": os.environ["GOOGLE_CLIENT_ID"],
         "redirect_uri": _redirect_uri(request),
@@ -119,17 +123,13 @@ def auth_google(request: Request) -> RedirectResponse:
         # silently uses the browser's existing session when there's only
         # one, which is what most people expect from "Sign in with Google".
     })
-    response = RedirectResponse(f"{_GOOGLE_AUTH_URL}?{params}")
-    response.set_cookie(_STATE_COOKIE, state, max_age=600,
-                        httponly=True, samesite="lax")
-    return response
+    return RedirectResponse(f"{_GOOGLE_AUTH_URL}?{params}")
 
 
 @app.get("/auth/google/callback")
-def auth_google_callback(request: Request, code: str = "", state: str = "",
-                         reportit_oauth_state: str = Cookie(default="")
+def auth_google_callback(request: Request, code: str = "", state: str = ""
                          ) -> RedirectResponse:
-    if not code or not state or state != reportit_oauth_state:
+    if not code or not db.consume_oauth_state(state):
         return RedirectResponse("/login?error=state")
     try:
         token = http.post(_GOOGLE_TOKEN_URL, data={
@@ -157,14 +157,13 @@ def auth_google_callback(request: Request, code: str = "", state: str = "",
     response.set_cookie(_COOKIE, db.create_session(user["id"]),
                         max_age=db.SESSION_DAYS * 86400,
                         httponly=True, samesite="lax")
-    response.delete_cookie(_STATE_COOKIE)
     return response
 
 
 @app.post("/api/logout")
 def api_logout(response: Response,
-               threadline_session: str = Cookie(default="")) -> dict:
-    db.delete_session(threadline_session)
+               session_cookie: str = Cookie(default="", alias=_COOKIE)) -> dict:
+    db.delete_session(session_cookie)
     response.delete_cookie(_COOKIE)
     return {"ok": True}
 

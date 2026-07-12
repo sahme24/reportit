@@ -54,7 +54,13 @@ CREATE TABLE IF NOT EXISTS ai_uses (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ai_uses_user ON ai_uses(user_id, created_at);
+CREATE TABLE IF NOT EXISTS oauth_states (
+    state TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL
+);
 """
+
+_OAUTH_STATE_MAX_AGE = timedelta(minutes=10)
 
 
 def _connect() -> sqlite3.Connection:
@@ -150,6 +156,38 @@ def user_for_session(token: str) -> dict | None:
 def delete_session(token: str) -> None:
     with _connect() as conn:
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+
+
+# --------------------------------------------------------------------------
+# OAuth CSRF state
+#
+# Stored server-side rather than in a cookie: Firebase Hosting's rewrite to
+# Cloud Run strips every request cookie except one literally named
+# "__session", so a second cookie for the OAuth state never survives the
+# round trip to Google and back.
+# --------------------------------------------------------------------------
+
+def create_oauth_state() -> str:
+    state = secrets.token_urlsafe(24)
+    with _connect() as conn:
+        conn.execute("INSERT INTO oauth_states (state, created_at) VALUES (?,?)",
+                     (state, _now()))
+    return state
+
+
+def consume_oauth_state(state: str) -> bool:
+    """Single-use: valid only once, within 10 minutes of creation."""
+    if not state:
+        return False
+    cutoff = (datetime.now(timezone.utc) - _OAUTH_STATE_MAX_AGE).isoformat()
+    with _connect() as conn:
+        conn.execute("DELETE FROM oauth_states WHERE created_at < ?", (cutoff,))
+        row = conn.execute("SELECT 1 FROM oauth_states WHERE state = ?",
+                           (state,)).fetchone()
+        if not row:
+            return False
+        conn.execute("DELETE FROM oauth_states WHERE state = ?", (state,))
+    return True
 
 
 # --------------------------------------------------------------------------
