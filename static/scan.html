@@ -216,17 +216,28 @@ ReportIT.topbar("/scan").then(user => {
   if (!user) location.href = "/login?next=/scan";
 });
 
+/* "3:45 PM" today, "3:45 PM tomorrow" if it lands on another day. */
+function fmtTime(iso){
+  if (!iso) return "";
+  const d = new Date(iso);
+  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? t : `${t} tomorrow`;
+}
+
 let aiEnabled = false, aiLimit = 3;
 fetch("/api/config").then(r => r.json()).then(async cfg => {
   aiEnabled = cfg.ai;
   aiLimit = cfg.ai_daily_limit || 3;
   if (!aiEnabled) return;
   // Show the remaining count before scanning too, since a scan can now
-  // actually be refused once the daily quota is spent.
+  // actually be refused once the daily quota is spent. Claude/ChatGPT-
+  // style: the exact next-refresh time rides along as a tooltip so it's
+  // there the moment it matters, not just after the count hits zero.
   try {
     const s = await (await fetch("/api/my/stats")).json();
     if (typeof s.ai_uses_left === "number") {
       $("preQuota").textContent = `${s.ai_uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+      if (s.ai_refresh_at) $("preQuota").title = `Next slot frees ${fmtTime(s.ai_refresh_at)}`;
       $("preQuota").classList.remove("hidden");
     }
   } catch {}
@@ -389,12 +400,7 @@ function render(c){
 
 /* "You're out of free scans, more at 3:45 PM" (user's local time). */
 function quotaMessage(refreshAt){
-  let when = "in a bit";
-  if (refreshAt) {
-    const d = new Date(refreshAt);
-    const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    when = d.toDateString() === new Date().toDateString() ? `at ${t}` : `at ${t} tomorrow`;
-  }
+  const when = refreshAt ? `at ${fmtTime(refreshAt)}` : "in a bit";
   return `You're out of free scans for today. Your next one unlocks ${when}.`;
 }
 

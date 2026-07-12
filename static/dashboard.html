@@ -107,8 +107,13 @@ ReportIT.topbar("/dashboard").then(async user => {
     set("uAi", "∞"); set("uAiSub", "AI not enabled on this server");
   } else {
     set("uAi", `${s.ai_uses_left} / ${s.ai_limit}`);
-    set("uAiSub", s.ai_uses_left === 0 && s.ai_refresh_at
-        ? `more at ${fmtTime(s.ai_refresh_at)}` : "refreshes on a rolling 24h basis");
+    // Claude/ChatGPT-style: surface the precise next-refresh time as soon
+    // as any usage exists, not only once the count hits zero -- a rolling
+    // window is confusing without a concrete "when" attached to it.
+    set("uAiSub", s.ai_refresh_at
+        ? (s.ai_uses_left === 0 ? `more at ${fmtTime(s.ai_refresh_at)}`
+                                : `next slot frees ${fmtTime(s.ai_refresh_at)}`)
+        : "3 free AI scans, any 24h window");
   }
   set("iScans", fmt(s.instance.scans));
   set("iThreats", fmt(s.instance.threats));

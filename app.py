@@ -117,11 +117,13 @@ def auth_google(request: Request) -> RedirectResponse:
         "response_type": "code",
         "scope": "openid email profile",
         "state": state,
-        # No "prompt" param: forcing select_account makes Google show its
-        # full account-chooser screen (every signed-in Google identity in
-        # the browser, name + email) on every login. Without it, Google
-        # silently uses the browser's existing session when there's only
-        # one, which is what most people expect from "Sign in with Google".
+        # select_account: always show Google's account chooser, even when
+        # the browser already has exactly one active Google session. This
+        # is a security tool -- a silent, no-confirmation sign-in (which is
+        # what Google does by default here) reads as "this site logged me
+        # in without asking," which is exactly what happened and alarmed
+        # a user testing in what they believed was a clean session.
+        "prompt": "select_account",
     })
     return RedirectResponse(f"{_GOOGLE_AUTH_URL}?{params}")
 
