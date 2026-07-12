@@ -92,9 +92,23 @@ def _is_forwarded(msg: EmailMessage) -> bool:
 def _sender_ip(msg: EmailMessage) -> str:
     """Best-guess originating public IP.
 
-    Preference order: explicit client-ip / "sender IP" annotations, then the
-    earliest (bottom-most) Received hop that carries a public address.
+    If an earlier hop recorded a clean SPF+DKIM pass (the message was
+    forwarded afterwards), that hop's IP is the true origin and is
+    preferred over any later one. Otherwise a forwarded message's
+    reputation check ends up looking at whichever mailbox provider
+    relayed it last (often a shared ESP IP used by millions of other
+    tenants), which says nothing about who actually sent it.
+    Preference order: authenticated-origin hop, then explicit client-ip /
+    "sender IP" annotations, then the earliest Received hop that carries
+    a public address.
     """
+    for header in msg.get_all("Authentication-Results", []):
+        hop = {m.lower(): r.lower() for m, r in _AUTH_RE.findall(header)}
+        if hop.get("spf") == "pass" and hop.get("dkim") == "pass":
+            m = _CLIENT_IP_RE.search(header) or _SENDER_IP_RE.search(header)
+            if m and _is_public_ip(m.group(1)):
+                return m.group(1)
+
     for header in msg.get_all("Received-SPF", []) + msg.get_all("Authentication-Results", []):
         m = _CLIENT_IP_RE.search(header) or _SENDER_IP_RE.search(header)
         if m and _is_public_ip(m.group(1)):

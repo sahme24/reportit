@@ -3,6 +3,8 @@
 from pathlib import Path
 
 from threadline.advice import advice_for
+from threadline.models import BAD, OK
+from threadline.parser import parse_email
 from threadline.report import markdown_report
 from threadline.scanner import scan
 from threadline.sms import scan_sms
@@ -86,6 +88,63 @@ def test_match_brand_boundaries():
     assert match_brand("0ffice365-secure.com") is not None
     assert match_brand("groups.com") is None       # "ups" inside a word
     assert match_brand("canadapost.ca") is None    # the real domain
+
+
+# ------------------------------------------------------------- forwarded mail
+
+def test_sender_ip_prefers_authenticated_origin_over_relay():
+    """A message forwarded through a second mailbox (Hotmail -> Gmail)
+    fails auth at the final hop but passed cleanly at the real origin.
+    The reputation check must use the origin's IP, not whichever relay
+    forwarded it last -- otherwise it's checking the reputation of a
+    shared ESP IP (Microsoft 365, Google, etc.) that says nothing about
+    who actually sent the message."""
+    raw = b"""\
+Authentication-Results: mx.google.com; dkim=neutral (body hash did not verify); spf=softfail (google.com: domain of transitioning bounce@example.com does not designate 2a01:111:f403:c105::5 as permitted sender)
+Authentication-Results: spf=pass (sender IP is 172.82.216.13) smtp.mailfrom=canadapost-postescanada.ca; dkim=pass (signature was verified) header.d=canadapost-postescanada.ca; dmarc=pass action=none
+Received-SPF: softfail (google.com: domain of transitioning bounce@example.com does not designate 2a01:111:f403:c105::5 as permitted sender) client-ip=2a01:111:f403:c105::5;
+Resent-From: <someone@hotmail.com>
+From: "Postes Canada" <notify@canadapost-postescanada.ca>
+Subject: Test
+Date: Fri, 10 Jul 2026 19:20:36 +0200
+To: <someone@example.com>
+
+Body text.
+"""
+    parsed = parse_email(raw)
+    assert parsed.sender_ip == "172.82.216.13"
+    assert parsed.auth_earlier_pass is True
+
+
+# ---------------------------------------------------------------- reputation
+
+def test_abuseipdb_low_confidence_is_not_flagged(monkeypatch):
+    """AbuseIPDB's own guidance treats scores below ~25% as noise -- a
+    shared mail relay accumulates some reports from other tenants'
+    traffic regardless of any single message sent through it."""
+    import threadline.reputation as reputation
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return {"data": {"abuseConfidenceScore": 26, "totalReports": 19}}
+
+    monkeypatch.setattr(reputation.requests, "get", lambda *a, **k: FakeResponse())
+    finding = reputation._abuseipdb("2a01:111:f403:c105::5", "fake-key")
+    assert finding.severity == OK
+
+
+def test_abuseipdb_high_confidence_is_flagged(monkeypatch):
+    import threadline.reputation as reputation
+
+    class FakeResponse:
+        status_code = 200
+        def json(self):
+            return {"data": {"abuseConfidenceScore": 90, "totalReports": 200}}
+
+    monkeypatch.setattr(reputation.requests, "get", lambda *a, **k: FakeResponse())
+    finding = reputation._abuseipdb("1.2.3.4", "fake-key")
+    assert finding.severity == BAD
 
 
 # -------------------------------------------------------------------- report

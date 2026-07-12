@@ -24,7 +24,7 @@ from pydantic import BaseModel
 
 from threadline import ai, db
 from threadline.advice import advice_for
-from threadline.models import WARN, Finding
+from threadline.models import OK, WARN, Finding
 from threadline.report import markdown_report
 from threadline.reputation import load_dotenv
 from threadline.scanner import scan
@@ -187,19 +187,30 @@ class ScanRequest(BaseModel):
 
 
 def _sightings_finding(sender: str, urls) -> list[Finding]:
-    """Cross-reference this instance's scan history (roadmap v2 feature)."""
+    """Cross-reference this instance's scan history.
+
+    Only a track record of prior MALICIOUS/SUSPICIOUS verdicts for this
+    sender/domain counts as a warning sign. Raw appearance count doesn't:
+    a high-volume real sender (a bank, a delivery service, a government
+    agency) gets scanned by cautious users a lot too, and that should
+    never make its legitimate mail look more suspicious over time.
+    """
     top_domain = next((u.domain for u in urls if u.domain), "")
     seen = db.prior_sightings(sender, top_domain)
-    if not (seen["sender"] or seen["domain"]):
-        return []
-    what = []
-    if seen["sender"]:
-        what.append(f"sender {sender} in {seen['sender']} previous case(s)")
-    if seen["domain"]:
-        what.append(f"domain {top_domain} in {seen['domain']} previous case(s)")
-    return [Finding(WARN, "Repeat offender",
-                    "Seen before on this instance: " + " and ".join(what) + ".",
-                    weight=10, category="history")]
+    bad = []
+    if seen["sender_bad"]:
+        bad.append(f"sender {sender} in {seen['sender_bad']} prior flagged case(s)")
+    if seen["domain_bad"]:
+        bad.append(f"domain {top_domain} in {seen['domain_bad']} prior flagged case(s)")
+    if bad:
+        return [Finding(WARN, "Repeat offender",
+                        "Seen before on this instance: " + " and ".join(bad) + ".",
+                        weight=10, category="history")]
+    if seen["sender_total"] or seen["domain_total"]:
+        return [Finding(OK, "Known sender",
+                        "Seen before on this instance with no prior "
+                        "malicious or suspicious verdicts.", category="history")]
+    return []
 
 
 def _email_enrichment(email, urls) -> list[Finding]:

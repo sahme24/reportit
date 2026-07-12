@@ -94,18 +94,27 @@ def _abuseipdb(ip: str, key: str) -> Finding | None:
         data = r.json()["data"]
         score = data.get("abuseConfidenceScore", 0)
         reports = data.get("totalReports", 0)
-        if score >= 50:
+        # Thresholds per AbuseIPDB's own guidance: they explicitly warn
+        # that a minimum as low as 25% is too permissive for most uses
+        # and recommend 75%+ before treating a score as high-confidence.
+        # Scoring on "any report at all" (or even 25%+) flags shared mail
+        # infrastructure (Microsoft 365, Google Workspace, etc.)
+        # constantly, since some other tenant on that IP range has
+        # nearly always triggered a report -- that says nothing about
+        # this specific message.
+        if score >= 75:
             return Finding(BAD, "Sender IP known-abusive",
                            f"{ip}: AbuseIPDB confidence {score}% "
                            f"({reports} reports in 90 days).",
                            weight=20, category="reputation")
-        if score > 0:
+        if score >= 50:
             return Finding(WARN, "Sender IP has abuse reports",
                            f"{ip}: AbuseIPDB confidence {score}% "
                            f"({reports} reports in 90 days).",
                            weight=8, category="reputation")
         return Finding(OK, "Sender IP reputation clean",
-                       f"{ip}: no AbuseIPDB reports in the last 90 days.",
+                       f"{ip}: AbuseIPDB confidence {score}%, below the "
+                       "threshold AbuseIPDB itself treats as meaningful.",
                        category="reputation")
     except Exception:
         return None

@@ -51,6 +51,43 @@ def test_scan_roundtrip_and_history():
     assert history and history[0]["case_id"] == case["case_id"]
 
 
+def test_repeat_offender_only_flags_prior_bad_verdicts():
+    """A sender/domain scanned before is only a warning sign if those
+    prior scans were themselves MALICIOUS/SUSPICIOUS -- not just for
+    having appeared before, which would penalize any real, high-volume
+    sender (a bank, a delivery service, a government agency) more the
+    more of its legitimate mail gets scanned.
+
+    Domains are made unique per call so this test doesn't collide with
+    scan history left behind by other tests sharing the same database.
+    """
+    n = next(_next_user)
+    malicious_raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(
+        encoding="utf-8").replace("0ffice365-secure.com", f"evil{n}.example")
+    clean_raw = (app_module.SAMPLES / "clean-notification.eml").read_text(
+        encoding="utf-8").replace("github.com", f"clean{n}.example")
+
+    def titles(case):
+        return {f["title"] for f in case["findings"]}
+
+    case1 = _signed_in_client().post(
+        "/api/scan", json={"raw": malicious_raw, "offline": True}).json()
+    assert "Repeat offender" not in titles(case1)
+
+    case2 = _signed_in_client().post(
+        "/api/scan", json={"raw": malicious_raw, "offline": True}).json()
+    assert "Repeat offender" in titles(case2)
+
+    case3 = _signed_in_client().post(
+        "/api/scan", json={"raw": clean_raw, "offline": True}).json()
+    assert "Repeat offender" not in titles(case3)
+
+    case4 = _signed_in_client().post(
+        "/api/scan", json={"raw": clean_raw, "offline": True}).json()
+    assert "Repeat offender" not in titles(case4)
+    assert "Known sender" in titles(case4)
+
+
 def test_ai_verdict_replaces_heuristic_verdict(monkeypatch):
     """There's one result, not two: when the AI's read differs from the
     heuristic score's, the AI verdict becomes the case's verdict (and the

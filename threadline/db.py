@@ -209,15 +209,30 @@ def record_scan(user_id: int | None, case: dict) -> None:
 
 
 def prior_sightings(from_addr: str, domain: str) -> dict:
-    """How many earlier cases on this instance saw the same sender or domain."""
-    with _connect() as conn:
-        sender = conn.execute(
-            "SELECT COUNT(*) c FROM scans WHERE from_addr = ? AND from_addr != ''",
-            (from_addr,)).fetchone()["c"] if from_addr else 0
-        dom = conn.execute(
-            "SELECT COUNT(*) c FROM scans WHERE top_domain = ? AND top_domain != ''",
-            (domain,)).fetchone()["c"] if domain else 0
-    return {"sender": sender, "domain": dom}
+    """Earlier cases on this instance for the same sender/domain, split by
+    whether those cases were flagged MALICIOUS/SUSPICIOUS.
+
+    Only a track record of BAD prior verdicts is a warning sign. Raw
+    appearance count is not: a sender seen only in LIKELY CLEAN cases is
+    just a high-volume real sender (a bank, a delivery service, a
+    government agency) whose legitimate mail keeps getting scanned by
+    cautious users -- that should never make it look MORE suspicious.
+    """
+    def _counts(column: str, value: str) -> tuple[int, int]:
+        if not value:
+            return 0, 0
+        with _connect() as conn:
+            row = conn.execute(
+                f"SELECT COUNT(*) total, SUM(CASE WHEN verdict IN "
+                "('MALICIOUS','SUSPICIOUS') THEN 1 ELSE 0 END) bad "
+                f"FROM scans WHERE {column} = ? AND {column} != ''",
+                (value,)).fetchone()
+        return row["total"], row["bad"] or 0
+
+    sender_total, sender_bad = _counts("from_addr", from_addr)
+    domain_total, domain_bad = _counts("top_domain", domain)
+    return {"sender_total": sender_total, "sender_bad": sender_bad,
+            "domain_total": domain_total, "domain_bad": domain_bad}
 
 
 def ai_usage(user_id: int) -> tuple[int, str | None]:
