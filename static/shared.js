@@ -17,6 +17,11 @@ const ReportIT = {
             font-weight="700" font-size="12" fill="var(--primary)">R</text>
     </svg>`,
 
+  icon: {
+    email: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><rect x="2" y="4.5" width="20" height="15" rx="2"/><path d="M3 6.5 L12 13 L21 6.5"/></svg>`,
+    sms: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px;"><path d="M3 4.5 H21 V16 H9 L4.5 20 V16 H3 Z"/></svg>`,
+  },
+
   theme: {
     get() { return localStorage.getItem("reportit-theme") || "light"; },
     set(mode) {

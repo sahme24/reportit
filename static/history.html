@@ -59,7 +59,7 @@ ReportIT.topbar("/history").then(async user => {
   document.getElementById("rows").innerHTML = scans.map(s => `
     <tr>
       <td class="mono">#${esc(s.case_id)}</td>
-      <td>${s.kind === "sms" ? "💬 SMS" : "📧 Email"}</td>
+      <td>${s.kind === "sms" ? ReportIT.icon.sms + "SMS" : ReportIT.icon.email + "Email"}</td>
       <td><span class="chip ${chip(s.verdict)}">${esc(s.verdict)}</span></td>
       <td class="mono">${s.score}/100</td>
       <td class="mono">${esc(s.from_addr || "—")}</td>
