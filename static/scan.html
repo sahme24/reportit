@@ -69,6 +69,97 @@
   }
   .mtab.active{background:var(--primary);color:var(--primary-ink);}
   .sender-row{margin-bottom:14px;max-width:340px;}
+
+  /* ------------------------- "how to get the raw email" walkthrough ---- */
+  .howto-overlay{
+    position:fixed;inset:0;background:rgba(9,15,29,0.55);z-index:80;
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  .howto-overlay.open{display:flex;}
+  .howto-modal{
+    width:100%;max-width:620px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow-lg);overflow:hidden;
+  }
+  .howto-head{display:flex;align-items:center;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);}
+  .howto-title{font-family:'Poppins',sans-serif;font-weight:600;font-size:14px;flex:1;color:var(--ink);}
+  .howto-x{
+    border:none;background:transparent;color:var(--faint);cursor:pointer;
+    font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;
+  }
+  .howto-x:hover{color:var(--ink);background:var(--bg-soft);}
+  .demo-stage{position:relative;background:var(--bg-soft);padding:16px;}
+  .demo-window{
+    position:relative;background:var(--panel);border:1px solid var(--line-strong);
+    border-radius:10px;overflow:hidden;height:270px;
+  }
+  .demo-titlebar{
+    display:flex;gap:6px;align-items:center;padding:8px 12px;
+    border-bottom:1px solid var(--line);font-size:11px;color:var(--faint);
+  }
+  .demo-titlebar i{width:9px;height:9px;border-radius:50%;background:var(--line-strong);}
+  .demo-titlebar span{margin-left:6px;}
+  .demo-mail{padding:14px 16px;position:relative;}
+  .demo-subject{font-weight:600;font-size:14px;color:var(--ink);}
+  .demo-fromrow{display:flex;align-items:center;gap:10px;margin-top:12px;}
+  .demo-avatar{
+    width:28px;height:28px;border-radius:50%;flex-shrink:0;
+    background:var(--amber-wash);color:var(--amber);font-weight:700;font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .demo-meta{flex:1;min-width:0;}
+  .demo-from{font-size:12.5px;color:var(--ink);font-weight:600;}
+  .demo-tome{font-size:11px;color:var(--faint);}
+  .demo-more{
+    width:28px;height:28px;border-radius:50%;flex-shrink:0;border:1px solid var(--line);
+    background:var(--panel);color:var(--dim);cursor:default;
+    display:flex;align-items:center;justify-content:center;transition:box-shadow .2s;
+  }
+  .demo-more.hl{box-shadow:0 0 0 3px var(--primary-wash);border-color:var(--primary);color:var(--primary);}
+  .demo-lines{margin-top:16px;display:flex;flex-direction:column;gap:9px;}
+  .demo-lines i{height:9px;border-radius:5px;background:var(--bg-soft);display:block;}
+  .demo-menu{
+    position:absolute;top:88px;right:16px;z-index:3;min-width:200px;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    box-shadow:var(--shadow);padding:6px;
+    opacity:0;transform:scale(0.96) translateY(-4px);pointer-events:none;
+    transition:opacity .18s var(--ease), transform .18s var(--ease);
+  }
+  .demo-menu.open{opacity:1;transform:none;}
+  .demo-mi{font-size:12px;color:var(--dim);padding:7px 10px;border-radius:6px;}
+  .demo-mi.target{color:var(--ink);font-weight:600;}
+  .demo-mi.hl{background:var(--primary-wash);color:var(--primary);}
+  .demo-raw{
+    position:absolute;inset:0;z-index:4;background:var(--panel);
+    padding:13px 16px;display:flex;flex-direction:column;
+    transform:translateY(100%);transition:transform .35s var(--ease);
+  }
+  .demo-raw.show{transform:none;}
+  .demo-raw-title{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:8px;}
+  .demo-raw pre{
+    flex:1;margin:0;overflow:hidden;font-family:'IBM Plex Mono',monospace;
+    font-size:10px;line-height:1.75;color:var(--dim);border-radius:6px;padding:4px 6px;
+  }
+  .demo-raw.selected pre{background:var(--primary-wash);}
+  .demo-copy{
+    align-self:flex-start;margin-top:10px;font-size:12px;font-weight:600;
+    padding:7px 14px;border-radius:8px;border:1px solid var(--line-strong);
+    background:var(--panel);color:var(--ink);transition:box-shadow .2s;
+  }
+  .demo-copy.hl{box-shadow:0 0 0 3px var(--primary-wash);border-color:var(--primary);color:var(--primary);}
+  .demo-cursor{
+    position:absolute;left:50%;top:82%;z-index:6;pointer-events:none;
+    transition:left .75s var(--ease), top .75s var(--ease);
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+  }
+  .demo-cursor.noanim{transition:none;}
+  .demo-cursor.click svg{animation:curClick .38s ease;}
+  @keyframes curClick{40%{transform:scale(0.72);}100%{transform:scale(1);}}
+  .howto-foot{display:flex;align-items:center;gap:12px;padding:12px 18px;border-top:1px solid var(--line);}
+  .demo-caption{flex:1;font-size:13px;color:var(--ink);line-height:1.5;min-height:38px;display:flex;align-items:center;}
+  .demo-dots{display:flex;gap:5px;flex-shrink:0;}
+  .demo-dots i{width:7px;height:7px;border-radius:50%;background:var(--line-strong);transition:background .2s;}
+  .demo-dots i.on{background:var(--primary);}
 </style>
 </head>
 <body>
@@ -104,6 +195,7 @@
       <textarea id="rawInput" spellcheck="false"></textarea>
       <div class="intake-row">
         <span class="intake-hint">Analysis runs on this server; reputation lookups are optional.</span>
+        <button class="btn ghost" id="howToBtn"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style="margin-right:5px;"><path d="M6 3.5 L20 12 L6 20.5 Z"/></svg>How do I get the raw email?</button>
         <button class="btn ghost" id="loadPhish">Load phishing sample</button>
         <button class="btn ghost" id="loadClean">Load clean sample</button>
         <button class="btn ghost hidden" id="loadSmish">Load smishing sample</button>
@@ -181,6 +273,60 @@
   </div>
 </div>
 
+<!-- animated "how to get the raw email" walkthrough -->
+<div class="howto-overlay" id="howtoOverlay">
+  <div class="howto-modal">
+    <div class="howto-head">
+      <span class="howto-title">Getting the raw email source</span>
+      <div class="mode-tabs">
+        <button class="mtab active" id="demoTabGmail">Gmail</button>
+        <button class="mtab" id="demoTabOutlook">Outlook</button>
+      </div>
+      <button class="howto-x" id="howtoClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="demo-stage" id="demoStage">
+      <div class="demo-window">
+        <div class="demo-titlebar"><i></i><i></i><i></i><span id="demoWinTitle">Gmail</span></div>
+        <div class="demo-mail">
+          <div class="demo-subject">Your package could not be delivered</div>
+          <div class="demo-fromrow">
+            <div class="demo-avatar">C</div>
+            <div class="demo-meta">
+              <div class="demo-from">Canada Post &lt;delivery@canadap0st-notice.com&gt;</div>
+              <div class="demo-tome">to me</div>
+            </div>
+            <div class="demo-more" id="demoMore"></div>
+          </div>
+          <div class="demo-lines">
+            <i style="width:88%;"></i><i style="width:72%;"></i><i style="width:80%;"></i>
+            <i style="width:45%;"></i><i style="width:64%;"></i>
+          </div>
+          <div class="demo-menu" id="demoMenu"></div>
+        </div>
+        <div class="demo-raw" id="demoRaw">
+          <div class="demo-raw-title" id="demoRawTitle">Original message</div>
+          <pre>Delivered-To: you@gmail.com
+Received: from mail-sor-f41.google.com
+ARC-Authentication-Results: spf=softfail
+  dkim=neutral dmarc=fail
+From: "Canada Post" &lt;delivery@canadap0st-notice.com&gt;
+Subject: Your package could not be delivered
+Content-Type: multipart/alternative; ...</pre>
+          <button class="demo-copy" id="demoCopy">Copy to clipboard</button>
+        </div>
+      </div>
+      <div class="demo-cursor" id="demoCursor">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 3 L19 12.5 L12.6 13.8 L16 20.6 L13.4 21.8 L10 15 L5 19 Z" fill="var(--ink)" stroke="var(--bg)" stroke-width="1.4"/></svg>
+      </div>
+    </div>
+    <div class="howto-foot">
+      <span class="demo-caption" id="demoCaption"></span>
+      <div class="demo-dots" id="demoDots"></div>
+      <button class="btn ghost" id="demoReplay">Replay</button>
+    </div>
+  </div>
+</div>
+
 <script src="/static/shared.js"></script>
 <script>
 let currentCase = null;
@@ -208,6 +354,7 @@ function setKind(k){
   $("loadPhish").classList.toggle("hidden", k === "sms");
   $("loadClean").classList.toggle("hidden", k === "sms");
   $("loadSmish").classList.toggle("hidden", k !== "sms");
+  $("howToBtn").classList.toggle("hidden", k === "sms");
   $("analyze").textContent = k === "sms" ? "Scan Text →" : "Scan Email →";
   $("error").textContent = "";
 }
@@ -469,6 +616,148 @@ $("newCase").onclick = () => {
   $("verdict").className = "stamp hidden";
   $("caseId").textContent = "NEW CASE";
 };
+
+/* ------------------- "how to get the raw email" walkthrough player ----- */
+
+const DOTS_V = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>`;
+const DOTS_H = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>`;
+
+const DEMO_CFG = {
+  gmail: {
+    title: "Gmail",
+    moreIcon: DOTS_V,
+    menu: ["Reply", "Forward", "Filter messages like this", "Print", "Show original", "Report phishing"],
+    target: "Show original",
+    rawTitle: "Original message",
+    copyBtn: true,
+    scenes: [
+      {dur: 2000, cap: "Open the suspicious email in Gmail."},
+      {dur: 2600, cap: "Click the three-dot “More” button on the message (top-right, next to Reply).",
+       run(){ demoMove("#demoMore", {click: true}); }},
+      {dur: 2800, cap: "Choose “Show original”.",
+       run(){ $("demoMenu").classList.add("open");
+              demoT(() => demoMove(".demo-mi.target", {click: true}), 200); }},
+      {dur: 3400, cap: "Gmail opens the full source, headers and all. Click “Copy to clipboard”.",
+       run(){ $("demoMenu").classList.remove("open");
+              $("demoRaw").classList.add("show");
+              demoT(() => demoMove("#demoCopy", {click: true}), 500); }},
+      {dur: 3000, cap: "Come back here, paste the whole thing into the box, and hit Scan.",
+       run(){ demoPark(); }},
+    ],
+  },
+  outlook: {
+    title: "Outlook (web)",
+    moreIcon: DOTS_H,
+    menu: ["Reply", "Reply all", "Delete", "Mark as unread", "View message source", "Report"],
+    target: "View message source",
+    rawTitle: "Message source",
+    copyBtn: false,
+    scenes: [
+      {dur: 2000, cap: "Open the email at outlook.com (or Outlook 365 on the web)."},
+      {dur: 2600, cap: "Click the “…” More actions button on the message.",
+       run(){ demoMove("#demoMore", {click: true}); }},
+      {dur: 3000, cap: "Choose View → “View message source”.",
+       run(){ $("demoMenu").classList.add("open");
+              demoT(() => demoMove(".demo-mi.target", {click: true}), 200); }},
+      {dur: 3600, cap: "The source pops up. Select it all and copy it (Ctrl+A, then Ctrl+C).",
+       run(){ $("demoMenu").classList.remove("open");
+              const raw = $("demoRaw");
+              raw.classList.add("show");
+              demoT(() => raw.classList.add("selected"), 900);
+              demoT(() => demoPark(), 500); }},
+      {dur: 3000, cap: "Paste it into the box here and hit Scan. Done.",
+       run(){ demoPark(); }},
+    ],
+  },
+};
+
+const demoState = { client: "gmail", timers: [] };
+
+function demoT(fn, ms){ demoState.timers.push(setTimeout(fn, ms)); }
+
+function demoMove(sel, opts = {}){
+  const stage = $("demoStage");
+  const el = stage.querySelector(sel);
+  if (!el) return;
+  const s = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const cur = $("demoCursor");
+  cur.style.left = (r.left - s.left + r.width / 2) + "px";
+  cur.style.top = (r.top - s.top + r.height / 2) + "px";
+  if (opts.click) demoT(() => {
+    cur.classList.add("click");
+    el.classList.add("hl");
+    demoT(() => cur.classList.remove("click"), 400);
+  }, 780);
+}
+
+function demoPark(){
+  const stage = $("demoStage");
+  const cur = $("demoCursor");
+  cur.style.left = (stage.clientWidth * 0.5) + "px";
+  cur.style.top = (stage.clientHeight * 0.82) + "px";
+}
+
+function stopDemo(){
+  demoState.timers.forEach(clearTimeout);
+  demoState.timers = [];
+}
+
+function playDemo(client){
+  stopDemo();
+  demoState.client = client;
+  const cfg = DEMO_CFG[client];
+
+  $("demoTabGmail").classList.toggle("active", client === "gmail");
+  $("demoTabOutlook").classList.toggle("active", client === "outlook");
+  $("demoWinTitle").textContent = cfg.title;
+  $("demoMore").innerHTML = cfg.moreIcon;
+  $("demoRawTitle").textContent = cfg.rawTitle;
+  $("demoCopy").style.display = cfg.copyBtn ? "" : "none";
+  $("demoMenu").innerHTML = cfg.menu.map(m =>
+    `<div class="demo-mi${m === cfg.target ? " target" : ""}">${m}</div>`).join("");
+  $("demoMenu").classList.remove("open");
+  $("demoRaw").classList.remove("show", "selected");
+  $("demoStage").querySelectorAll(".hl").forEach(el => el.classList.remove("hl"));
+  $("demoDots").innerHTML = cfg.scenes.map(() => "<i></i>").join("");
+
+  // park the cursor instantly, then re-enable the travel animation
+  const cur = $("demoCursor");
+  cur.classList.add("noanim");
+  demoPark();
+  cur.offsetWidth;  // force the reflow so "noanim" actually applies
+  cur.classList.remove("noanim");
+
+  let t = 0;
+  cfg.scenes.forEach((sc, i) => {
+    demoT(() => {
+      $("demoCaption").textContent = sc.cap;
+      $("demoDots").querySelectorAll("i").forEach((d, j) =>
+        d.classList.toggle("on", j <= i));
+      if (sc.run) sc.run();
+    }, t);
+    t += sc.dur;
+  });
+}
+
+function openHowto(){
+  $("howtoOverlay").classList.add("open");
+  playDemo(demoState.client);
+}
+function closeHowto(){
+  $("howtoOverlay").classList.remove("open");
+  stopDemo();
+}
+
+$("howToBtn").onclick = openHowto;
+$("howtoClose").onclick = closeHowto;
+$("demoReplay").onclick = () => playDemo(demoState.client);
+$("demoTabGmail").onclick = () => playDemo("gmail");
+$("demoTabOutlook").onclick = () => playDemo("outlook");
+$("howtoOverlay").onclick = e => { if (e.target === $("howtoOverlay")) closeHowto(); };
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("howtoOverlay").classList.contains("open")) closeHowto();
+});
+if (location.hash === "#howto") openHowto();
 </script>
 </body>
 </html>
