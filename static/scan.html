@@ -89,64 +89,104 @@
   }
   .howto-x:hover{color:var(--ink);background:var(--bg-soft);}
   .demo-stage{position:relative;background:var(--bg-soft);padding:16px;}
+  /* The window replicates the real clients, so it stays light (like a
+     screenshot would) regardless of the site theme. */
   .demo-window{
-    position:relative;background:var(--panel);border:1px solid var(--line-strong);
-    border-radius:10px;overflow:hidden;height:270px;
+    position:relative;background:#fff;border:1px solid var(--line-strong);
+    border-radius:10px;overflow:hidden;height:322px;
   }
   .demo-titlebar{
     display:flex;gap:6px;align-items:center;padding:8px 12px;
-    border-bottom:1px solid var(--line);font-size:11px;color:var(--faint);
+    background:#f1f3f4;border-bottom:1px solid #e0e3e7;font-size:11px;color:#80868b;
   }
-  .demo-titlebar i{width:9px;height:9px;border-radius:50%;background:var(--line-strong);}
+  .demo-titlebar i{width:9px;height:9px;border-radius:50%;background:#d2d6da;}
   .demo-titlebar span{margin-left:6px;}
-  .demo-mail{padding:14px 16px;position:relative;}
-  .demo-subject{font-weight:600;font-size:14px;color:var(--ink);}
-  .demo-fromrow{display:flex;align-items:center;gap:10px;margin-top:12px;}
-  .demo-avatar{
-    width:28px;height:28px;border-radius:50%;flex-shrink:0;
-    background:var(--amber-wash);color:var(--amber);font-weight:700;font-size:12px;
-    display:flex;align-items:center;justify-content:center;
+  .demo-client{position:relative;height:100%;}
+  .hl-ring{transition:box-shadow .2s, background .2s;}
+
+  /* ---- Gmail replica (modeled on the real message view) ---- */
+  .gm-mail{position:relative;padding:14px 20px;font-family:Roboto,Arial,sans-serif;color:#202124;height:100%;}
+  .gm-subject{font-size:16px;font-weight:400;color:#1f1f1f;}
+  .gm-chip{font-size:10px;color:#5e5e5e;background:#eeeeee;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:2px;white-space:nowrap;}
+  .gm-row{display:flex;align-items:flex-start;gap:10px;margin-top:13px;}
+  .gm-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:#c5221f;color:#fff;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+  .gm-meta{flex:1;min-width:0;font-size:12px;}
+  .gm-meta b{font-size:13px;font-weight:700;color:#1f1f1f;}
+  .gm-email{color:#5f6368;}
+  .gm-tome{color:#5f6368;font-size:11.5px;margin-top:1px;}
+  .gm-actions{display:flex;align-items:center;gap:9px;color:#5f6368;flex-shrink:0;}
+  .gm-time{font-size:11px;white-space:nowrap;}
+  .gm-ic{display:flex;align-items:center;justify-content:center;width:20px;height:20px;}
+  .gm-more{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#5f6368;}
+  .gm-more.hl{background:#e8f0fe;box-shadow:0 0 0 3px rgba(26,115,232,0.25);color:#1a73e8;}
+  .gm-body{margin-top:13px;font-size:12.5px;line-height:1.7;color:#3c4043;}
+  .gm-menu{
+    position:absolute;top:62px;right:12px;z-index:3;min-width:212px;
+    background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(60,64,67,0.3),0 4px 12px rgba(60,64,67,0.15);
+    padding:6px 0;opacity:0;transform:scale(0.97);pointer-events:none;
+    transition:opacity .16s var(--ease), transform .16s var(--ease);
   }
-  .demo-meta{flex:1;min-width:0;}
-  .demo-from{font-size:12.5px;color:var(--ink);font-weight:600;}
-  .demo-tome{font-size:11px;color:var(--faint);}
-  .demo-more{
-    width:28px;height:28px;border-radius:50%;flex-shrink:0;border:1px solid var(--line);
-    background:var(--panel);color:var(--dim);cursor:default;
-    display:flex;align-items:center;justify-content:center;transition:box-shadow .2s;
-  }
-  .demo-more.hl{box-shadow:0 0 0 3px var(--primary-wash);border-color:var(--primary);color:var(--primary);}
-  .demo-lines{margin-top:16px;display:flex;flex-direction:column;gap:9px;}
-  .demo-lines i{height:9px;border-radius:5px;background:var(--bg-soft);display:block;}
-  .demo-menu{
-    position:absolute;top:88px;right:16px;z-index:3;min-width:200px;
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    box-shadow:var(--shadow);padding:6px;
-    opacity:0;transform:scale(0.96) translateY(-4px);pointer-events:none;
-    transition:opacity .18s var(--ease), transform .18s var(--ease);
-  }
-  .demo-menu.open{opacity:1;transform:none;}
-  .demo-mi{font-size:12px;color:var(--dim);padding:7px 10px;border-radius:6px;}
-  .demo-mi.target{color:var(--ink);font-weight:600;}
-  .demo-mi.hl{background:var(--primary-wash);color:var(--primary);}
-  .demo-raw{
-    position:absolute;inset:0;z-index:4;background:var(--panel);
-    padding:13px 16px;display:flex;flex-direction:column;
+  .gm-menu.open{opacity:1;transform:none;}
+  .gm-mi{display:flex;align-items:center;gap:13px;font-size:12.5px;color:#202124;padding:4.5px 16px;}
+  .gm-mi svg{color:#5f6368;flex-shrink:0;}
+  .gm-mi.hl{background:#e8f0fe;}
+  .gm-div{height:1px;background:#e8eaed;margin:5px 0;}
+  .gm-raw{
+    position:absolute;inset:0;z-index:4;background:#fff;padding:13px 18px;
+    font-family:Roboto,Arial,sans-serif;color:#202124;overflow:hidden;
     transform:translateY(100%);transition:transform .35s var(--ease);
   }
-  .demo-raw.show{transform:none;}
-  .demo-raw-title{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:8px;}
-  .demo-raw pre{
-    flex:1;margin:0;overflow:hidden;font-family:'IBM Plex Mono',monospace;
-    font-size:10px;line-height:1.75;color:var(--dim);border-radius:6px;padding:4px 6px;
+  .gm-raw.show{transform:none;}
+  .gm-raw-h{font-size:15px;margin-bottom:8px;}
+  .gm-raw table{font-size:10.5px;border-collapse:collapse;}
+  .gm-raw td{padding:1.5px 14px 1.5px 0;}
+  .gm-raw td:first-child{color:#5f6368;}
+  .gm-softfail{color:#ea8600;font-weight:500;}
+  .gm-fail{color:#d93025;font-weight:500;}
+  .gm-raw-btns{margin:9px 0 5px;display:flex;gap:18px;font-size:11.5px;color:#1a73e8;font-weight:500;}
+  .gm-raw-btns span{padding:2px 5px;border-radius:4px;}
+  .gm-raw-btns span.hl{background:#e8f0fe;box-shadow:0 0 0 3px rgba(26,115,232,0.25);}
+  .gm-raw pre{font-size:9.5px;line-height:1.6;color:#5f6368;margin:4px 0 0;font-family:'IBM Plex Mono',monospace;overflow:hidden;}
+
+  /* ---- Outlook (web) replica ---- */
+  .ol-mail{position:relative;padding:13px 18px;font-family:'Segoe UI',system-ui,sans-serif;color:#242424;height:100%;}
+  .ol-subject{font-size:16.5px;font-weight:600;}
+  .ol-row{display:flex;align-items:flex-start;gap:10px;margin-top:12px;}
+  .ol-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:#0f6cbd;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;}
+  .ol-meta{flex:1;min-width:0;font-size:12px;}
+  .ol-name{font-size:13px;font-weight:600;color:#242424;}
+  .ol-name span{font-weight:400;color:#616161;}
+  .ol-to{font-size:11.5px;color:#616161;margin-top:1px;}
+  .ol-actions{display:flex;align-items:center;gap:10px;color:#616161;flex-shrink:0;}
+  .ol-time{font-size:11px;white-space:nowrap;}
+  .ol-more{width:26px;height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;}
+  .ol-more.hl{background:#ebf3fc;box-shadow:0 0 0 3px rgba(15,108,189,0.22);color:#0f6cbd;}
+  .ol-body{margin-top:13px;font-size:12.5px;line-height:1.7;color:#424242;}
+  .ol-menu,.ol-sub{
+    position:absolute;z-index:3;background:#fff;border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.14),0 8px 20px rgba(0,0,0,0.14);
+    padding:4px;opacity:0;transform:scale(0.97);pointer-events:none;
+    transition:opacity .16s var(--ease), transform .16s var(--ease);
   }
-  .demo-raw.selected pre{background:var(--primary-wash);}
-  .demo-copy{
-    align-self:flex-start;margin-top:10px;font-size:12px;font-weight:600;
-    padding:7px 14px;border-radius:8px;border:1px solid var(--line-strong);
-    background:var(--panel);color:var(--ink);transition:box-shadow .2s;
+  .ol-menu{top:56px;right:12px;min-width:186px;}
+  .ol-sub{top:232px;right:200px;min-width:196px;z-index:4;}
+  .ol-menu.open,.ol-sub.open{opacity:1;transform:none;}
+  .ol-mi{display:flex;align-items:center;gap:11px;font-size:12.5px;color:#242424;padding:6px 12px;border-radius:4px;}
+  .ol-mi svg{color:#616161;flex-shrink:0;}
+  .ol-mi .ol-caret{margin-left:auto;color:#616161;}
+  .ol-mi.hl{background:#ebf3fc;}
+  .ol-div{height:1px;background:#f0f0f0;margin:4px 2px;}
+  .ol-raw{
+    position:absolute;inset:12px 16px;z-index:5;background:#fff;
+    border:1px solid #d1d1d1;border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.22);padding:12px 14px;
+    display:none;flex-direction:column;font-family:'Segoe UI',system-ui,sans-serif;
   }
-  .demo-copy.hl{box-shadow:0 0 0 3px var(--primary-wash);border-color:var(--primary);color:var(--primary);}
+  .ol-raw.show{display:flex;}
+  .ol-raw-h{font-weight:600;font-size:13px;color:#242424;margin-bottom:7px;}
+  .ol-raw pre{flex:1;font-size:9.5px;line-height:1.6;color:#616161;margin:0;font-family:'IBM Plex Mono',monospace;overflow:hidden;border-radius:4px;padding:3px 5px;}
+  .ol-raw.selected pre{background:#cfe4fa;}
+  .ol-close{align-self:flex-end;margin-top:9px;background:#0f6cbd;color:#fff;font-size:11.5px;font-weight:600;padding:5px 16px;border-radius:4px;border:none;}
   .demo-cursor{
     position:absolute;left:50%;top:82%;z-index:6;pointer-events:none;
     transition:left .75s var(--ease), top .75s var(--ease);
@@ -287,36 +327,109 @@
     <div class="demo-stage" id="demoStage">
       <div class="demo-window">
         <div class="demo-titlebar"><i></i><i></i><i></i><span id="demoWinTitle">Gmail</span></div>
-        <div class="demo-mail">
-          <div class="demo-subject">Your package could not be delivered</div>
-          <div class="demo-fromrow">
-            <div class="demo-avatar">C</div>
-            <div class="demo-meta">
-              <div class="demo-from">Canada Post &lt;delivery@canadap0st-notice.com&gt;</div>
-              <div class="demo-tome">to me</div>
+
+        <!-- Gmail replica -->
+        <div class="demo-client" id="demoGmail">
+          <div class="gm-mail">
+            <div class="gm-subject">Your package could not be delivered <span class="gm-chip">Inbox &times;</span></div>
+            <div class="gm-row">
+              <div class="gm-avatar">C</div>
+              <div class="gm-meta">
+                <div><b>Canada Post</b> <span class="gm-email">&lt;delivery@canadap0st-notice.com&gt;</span></div>
+                <div class="gm-tome">to me &#9662;</div>
+              </div>
+              <div class="gm-actions">
+                <span class="gm-time">12:42&#8202;PM (2 hours ago)</span>
+                <span class="gm-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3.5 L14.7 9 L20.8 9.9 L16.4 14.1 L17.4 20.2 L12 17.3 L6.6 20.2 L7.6 14.1 L3.2 9.9 L9.3 9 Z"/></svg></span>
+                <span class="gm-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8.5 L4.5 13 L10 17.5 M4.5 13 H15 A5 5 0 0 1 20 18 V19"/></svg></span>
+                <span class="gm-more hl-ring" id="gmMore"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5.2" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.8" r="1.7"/></svg></span>
+              </div>
             </div>
-            <div class="demo-more" id="demoMore"></div>
+            <div class="gm-body">
+              Hello, your Canada Post package #CA-884120 could not be delivered
+              due to an incomplete address. To reschedule delivery, confirm your
+              details within 24 hours or the package will be returned to sender.
+            </div>
+            <div class="gm-menu" id="gmMenu">
+              <div class="gm-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8.5 L4.5 13 L10 17.5 M4.5 13 H15 A5 5 0 0 1 20 18 V19"/></svg>Reply</div>
+              <div class="gm-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8.5 L19.5 13 L14 17.5 M19.5 13 H9 A5 5 0 0 0 4 18 V19"/></svg>Forward</div>
+              <div class="gm-div"></div>
+              <div class="gm-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7 H19 M9 7 V5 H15 V7 M7 7 L8 20 H16 L17 7"/></svg>Delete</div>
+              <div class="gm-div"></div>
+              <div class="gm-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21 V4 M5 4 H18 L15 8.5 L18 13 H5"/></svg>Report phishing</div>
+              <div class="gm-div"></div>
+              <div class="gm-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8 V4 H17 V8 M7 16 H5 V9.5 H19 V16 H17 M7 13.5 H17 V20 H7 Z"/></svg>Print</div>
+              <div class="gm-mi target hl-ring" id="gmTarget"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17"/></svg>Show original</div>
+            </div>
           </div>
-          <div class="demo-lines">
-            <i style="width:88%;"></i><i style="width:72%;"></i><i style="width:80%;"></i>
-            <i style="width:45%;"></i><i style="width:64%;"></i>
+          <div class="gm-raw" id="gmRaw">
+            <div class="gm-raw-h">Original Message</div>
+            <table>
+              <tr><td>Message ID</td><td>&lt;NM617A03DF5@canadap0st-notice.com&gt;</td></tr>
+              <tr><td>From</td><td>"Canada Post" &lt;delivery@canadap0st-notice.com&gt;</td></tr>
+              <tr><td>Subject</td><td>Your package could not be delivered</td></tr>
+              <tr><td>SPF</td><td class="gm-softfail">SOFTFAIL</td></tr>
+              <tr><td>DKIM</td><td class="gm-softfail">NEUTRAL</td></tr>
+              <tr><td>DMARC</td><td class="gm-fail">FAIL</td></tr>
+            </table>
+            <div class="gm-raw-btns"><span>Download Original</span><span class="hl-ring" id="gmCopy">Copy to clipboard</span></div>
+            <pre>Delivered-To: you@gmail.com
+Received: from mail-sor-f41.google.com ([209.85.220.41])
+Authentication-Results: spf=softfail dkim=neutral dmarc=fail
+From: "Canada Post" &lt;delivery@canadap0st-notice.com&gt;</pre>
           </div>
-          <div class="demo-menu" id="demoMenu"></div>
         </div>
-        <div class="demo-raw" id="demoRaw">
-          <div class="demo-raw-title" id="demoRawTitle">Original message</div>
-          <pre>Delivered-To: you@gmail.com
-Received: from mail-sor-f41.google.com
-ARC-Authentication-Results: spf=softfail
-  dkim=neutral dmarc=fail
+
+        <!-- Outlook (web) replica -->
+        <div class="demo-client" id="demoOutlook" style="display:none;">
+          <div class="ol-mail">
+            <div class="ol-subject">Your package could not be delivered</div>
+            <div class="ol-row">
+              <div class="ol-avatar">CP</div>
+              <div class="ol-meta">
+                <div class="ol-name">Canada Post <span>&lt;delivery@canadap0st-notice.com&gt;</span></div>
+                <div class="ol-to">To: You</div>
+              </div>
+              <div class="ol-actions">
+                <span class="ol-time">Tue 12:42 PM</span>
+                <span class="gm-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8.5 L4.5 13 L10 17.5 M4.5 13 H15 A5 5 0 0 1 20 18 V19"/></svg></span>
+                <span class="ol-more hl-ring" id="olMore"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5.2" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.8" cy="12" r="1.7"/></svg></span>
+              </div>
+            </div>
+            <div class="ol-body">
+              Hello, your Canada Post package #CA-884120 could not be delivered
+              due to an incomplete address. To reschedule delivery, confirm your
+              details within 24 hours or the package will be returned to sender.
+            </div>
+            <div class="ol-menu" id="olMenu">
+              <div class="ol-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8.5 L4.5 13 L10 17.5 M4.5 13 H15 A5 5 0 0 1 20 18 V19"/></svg>Reply</div>
+              <div class="ol-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8.5 L19.5 13 L14 17.5 M19.5 13 H9 A5 5 0 0 0 4 18 V19"/></svg>Forward</div>
+              <div class="ol-div"></div>
+              <div class="ol-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7 H19 M9 7 V5 H15 V7 M7 7 L8 20 H16 L17 7"/></svg>Delete</div>
+              <div class="ol-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 8 V13 M12 16 V16.01"/></svg>Report</div>
+              <div class="ol-div"></div>
+              <div class="ol-mi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8 V4 H17 V8 M7 16 H5 V9.5 H19 V16 H17 M7 13.5 H17 V20 H7 Z"/></svg>Print</div>
+              <div class="ol-mi hl-ring" id="olView"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12 C5 7 9 4.5 12 4.5 C15 4.5 19 7 21.5 12 C19 17 15 19.5 12 19.5 C9 19.5 5 17 2.5 12 Z"/><circle cx="12" cy="12" r="3"/></svg>View<span class="ol-caret">&#9656;</span></div>
+            </div>
+            <div class="ol-sub" id="olSub">
+              <div class="ol-mi">View message details</div>
+              <div class="ol-mi target hl-ring" id="olTarget"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 L4 12 L9 17 M15 7 L20 12 L15 17"/></svg>View message source</div>
+            </div>
+            <div class="ol-raw" id="olRaw">
+              <div class="ol-raw-h">Message source</div>
+              <pre>Received: from CH5PR02CU005.outbound.protection.outlook.com
+Authentication-Results: spf=softfail smtp.mailfrom=canadap0st-notice.com;
+  dkim=neutral; dmarc=fail action=quarantine
 From: "Canada Post" &lt;delivery@canadap0st-notice.com&gt;
 Subject: Your package could not be delivered
-Content-Type: multipart/alternative; ...</pre>
-          <button class="demo-copy" id="demoCopy">Copy to clipboard</button>
+Content-Type: multipart/alternative</pre>
+              <button class="ol-close">Close</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="demo-cursor" id="demoCursor">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 3 L19 12.5 L12.6 13.8 L16 20.6 L13.4 21.8 L10 15 L5 19 Z" fill="var(--ink)" stroke="var(--bg)" stroke-width="1.4"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 3 L19 12.5 L12.6 13.8 L16 20.6 L13.4 21.8 L10 15 L5 19 Z" fill="#1f2937" stroke="#fff" stroke-width="1.4"/></svg>
       </div>
     </div>
     <div class="howto-foot">
@@ -619,53 +732,44 @@ $("newCase").onclick = () => {
 
 /* ------------------- "how to get the raw email" walkthrough player ----- */
 
-const DOTS_V = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>`;
-const DOTS_H = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>`;
-
 const DEMO_CFG = {
   gmail: {
     title: "Gmail",
-    moreIcon: DOTS_V,
-    menu: ["Reply", "Forward", "Filter messages like this", "Print", "Show original", "Report phishing"],
-    target: "Show original",
-    rawTitle: "Original message",
-    copyBtn: true,
     scenes: [
       {dur: 2000, cap: "Open the suspicious email in Gmail."},
       {dur: 2600, cap: "Click the three-dot “More” button on the message (top-right, next to Reply).",
-       run(){ demoMove("#demoMore", {click: true}); }},
-      {dur: 2800, cap: "Choose “Show original”.",
-       run(){ $("demoMenu").classList.add("open");
-              demoT(() => demoMove(".demo-mi.target", {click: true}), 200); }},
-      {dur: 3400, cap: "Gmail opens the full source, headers and all. Click “Copy to clipboard”.",
-       run(){ $("demoMenu").classList.remove("open");
-              $("demoRaw").classList.add("show");
-              demoT(() => demoMove("#demoCopy", {click: true}), 500); }},
+       run(){ demoMove("#gmMore", {click: true}); }},
+      {dur: 2800, cap: "Choose “Show original”, the last item in the menu.",
+       run(){ $("gmMenu").classList.add("open");
+              demoT(() => demoMove("#gmTarget", {click: true}), 200); }},
+      {dur: 3400, cap: "Gmail opens the full source in a new tab. Click “Copy to clipboard”.",
+       run(){ $("gmMenu").classList.remove("open");
+              $("gmRaw").classList.add("show");
+              demoT(() => demoMove("#gmCopy", {click: true}), 500); }},
       {dur: 3000, cap: "Come back here, paste the whole thing into the box, and hit Scan.",
        run(){ demoPark(); }},
     ],
   },
   outlook: {
     title: "Outlook (web)",
-    moreIcon: DOTS_H,
-    menu: ["Reply", "Reply all", "Delete", "Mark as unread", "View message source", "Report"],
-    target: "View message source",
-    rawTitle: "Message source",
-    copyBtn: false,
     scenes: [
       {dur: 2000, cap: "Open the email at outlook.com (or Outlook 365 on the web)."},
       {dur: 2600, cap: "Click the “…” More actions button on the message.",
-       run(){ demoMove("#demoMore", {click: true}); }},
-      {dur: 3000, cap: "Choose View → “View message source”.",
-       run(){ $("demoMenu").classList.add("open");
-              demoT(() => demoMove(".demo-mi.target", {click: true}), 200); }},
+       run(){ demoMove("#olMore", {click: true}); }},
+      {dur: 2800, cap: "Hover “View” near the bottom of the menu.",
+       run(){ $("olMenu").classList.add("open");
+              demoT(() => demoMove("#olView", {click: true}), 200); }},
+      {dur: 2800, cap: "Choose “View message source”.",
+       run(){ $("olSub").classList.add("open");
+              demoT(() => demoMove("#olTarget", {click: true}), 200); }},
       {dur: 3600, cap: "The source pops up. Select it all and copy it (Ctrl+A, then Ctrl+C).",
-       run(){ $("demoMenu").classList.remove("open");
-              const raw = $("demoRaw");
+       run(){ $("olMenu").classList.remove("open");
+              $("olSub").classList.remove("open");
+              const raw = $("olRaw");
               raw.classList.add("show");
               demoT(() => raw.classList.add("selected"), 900);
               demoT(() => demoPark(), 500); }},
-      {dur: 3000, cap: "Paste it into the box here and hit Scan. Done.",
+      {dur: 3000, cap: "Paste it into the box here and hit Scan. Same steps in the Outlook desktop app.",
        run(){ demoPark(); }},
     ],
   },
@@ -710,13 +814,11 @@ function playDemo(client){
   $("demoTabGmail").classList.toggle("active", client === "gmail");
   $("demoTabOutlook").classList.toggle("active", client === "outlook");
   $("demoWinTitle").textContent = cfg.title;
-  $("demoMore").innerHTML = cfg.moreIcon;
-  $("demoRawTitle").textContent = cfg.rawTitle;
-  $("demoCopy").style.display = cfg.copyBtn ? "" : "none";
-  $("demoMenu").innerHTML = cfg.menu.map(m =>
-    `<div class="demo-mi${m === cfg.target ? " target" : ""}">${m}</div>`).join("");
-  $("demoMenu").classList.remove("open");
-  $("demoRaw").classList.remove("show", "selected");
+  $("demoGmail").style.display = client === "gmail" ? "" : "none";
+  $("demoOutlook").style.display = client === "outlook" ? "" : "none";
+  ["gmMenu", "olMenu", "olSub"].forEach(id => $(id).classList.remove("open"));
+  $("gmRaw").classList.remove("show");
+  $("olRaw").classList.remove("show", "selected");
   $("demoStage").querySelectorAll(".hl").forEach(el => el.classList.remove("hl"));
   $("demoDots").innerHTML = cfg.scenes.map(() => "<i></i>").join("");
 
