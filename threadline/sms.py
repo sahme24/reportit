@@ -11,19 +11,11 @@ from __future__ import annotations
 import re
 
 from .advice import advice_for
+from .content import content_findings
 from .models import BAD, INFO, OK, WARN, Case, ChainNode, Finding, case_id_for
 from .reputation import reputation_findings
 from .scanner import _SEV_ORDER, _url_findings, _verdict
 from .urlscan import URL_RE, analyze_url, refang
-
-# Pressure phrasing specific to text scams (email urgency list also applies).
-SMS_URGENCY = (
-    "final notice", "last reminder", "act now", "expires today", "expire",
-    "within 24 hours", "on hold", "unpaid", "toll", "refund", "rebate",
-    "e-transfer", "etransfer", "suspended", "locked", "verify your",
-    "claim", "tax return", "failed delivery", "redelivery", "customs fee",
-    "outstanding balance", "avoid penalties",
-)
 
 # Organizations smishers impersonate BY NAME in the message text, mapped to
 # the domains they actually send from. A brand mention + a link anywhere
@@ -105,14 +97,6 @@ def _lure_findings(text: str, urls) -> list[Finding]:
                 "defining smishing pattern.", weight=30, category="domain"))
         break
 
-    hits = [p for p in SMS_URGENCY if p in lowered]
-    if hits:
-        findings.append(Finding(
-            WARN, "Urgency and pressure language",
-            "Classic pressure phrasing: " + ", ".join(f'"{h}"' for h in hits[:3])
-            + ("…" if len(hits) > 3 else "."),
-            weight=min(5 * len(hits), 15), category="content"))
-
     if not urls and any(w in lowered for w in ("call", "reply", "text back")):
         findings.append(Finding(
             INFO, "Callback lure",
@@ -157,8 +141,13 @@ def scan_sms(text: str, sender: str = "", offline: bool = False,
     text = refang(text.strip())
     urls = [analyze_url(m.rstrip(".,;")) for m in dict.fromkeys(URL_RE.findall(text))]
 
+    # Language-aware content signals (urgency incl. SMS-specific phrasing,
+    # info requests, authority claims) from the config-driven layer.
+    language, lang_findings, matched_phrases = content_findings(text, kind="sms")
+
     findings = _sender_findings(sender)
     findings += _lure_findings(text, urls)
+    findings += lang_findings
     findings += _url_findings(urls)
     findings += reputation_findings("", urls, offline=offline)
     if enrich:
@@ -169,10 +158,10 @@ def scan_sms(text: str, sender: str = "", offline: bool = False,
     verdict, confidence = _verdict(score)
     preview = text[:600]
 
-    # Substrings the UI should visually mark: pressure phrases, invoked
-    # brand names, and every link that raised a flag.
+    # Substrings the UI should visually mark: matched content phrases,
+    # invoked brand names, and every link that raised a flag.
     lowered = text.lower()
-    highlights = [p for p in SMS_URGENCY if p in lowered]
+    highlights = list(dict.fromkeys(matched_phrases))
     highlights += [b for b in LURE_BRANDS
                    if re.search(rf"\b{re.escape(b)}\b", lowered)]
     # A brand lure makes the link itself the payload, so mark every link then.
@@ -202,6 +191,7 @@ def scan_sms(text: str, sender: str = "", offline: bool = False,
         body_preview=preview,
         attachments=[],
         kind="sms",
+        language=language,
         highlights=highlights,
         recommendations=advice_for("sms", verdict, findings),
     )

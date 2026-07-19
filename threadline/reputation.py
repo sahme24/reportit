@@ -13,6 +13,7 @@ Every lookup fails soft, so a dead API never breaks a scan.
 from __future__ import annotations
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -143,6 +144,23 @@ def _urlhaus(url: str, key: str) -> Finding | None:
 # Orchestrator
 # --------------------------------------------------------------------------
 
+def _age_finding(domain: str) -> Finding | None:
+    age = domain_age_days(domain)
+    if age is None:
+        return None
+    if age <= 30:
+        return Finding(BAD, "Newly registered domain",
+                       f"{domain} was registered {age} day(s) ago.",
+                       weight=25, category="reputation")
+    if age <= 180:
+        return Finding(WARN, "Recently registered domain",
+                       f"{domain} was registered {age} days ago.",
+                       weight=10, category="reputation")
+    return Finding(INFO, "Domain age",
+                   f"{domain} registered {age // 365} year(s) ago.",
+                   category="reputation")
+
+
 def reputation_findings(sender_ip: str, urls: list[UrlInfo],
                         offline: bool = False) -> list[Finding]:
     if offline:
@@ -151,45 +169,32 @@ def reputation_findings(sender_ip: str, urls: list[UrlInfo],
                         category="reputation")]
 
     load_dotenv()
-    findings: list[Finding] = []
     domains = list(dict.fromkeys(u.domain for u in urls if u.domain))
-
-    # Domain age via RDAP (keyless)
-    for domain in domains[:5]:
-        age = domain_age_days(domain)
-        if age is None:
-            continue
-        if age <= 30:
-            findings.append(Finding(BAD, "Newly registered domain",
-                                    f"{domain} was registered {age} day(s) ago.",
-                                    weight=25, category="reputation"))
-        elif age <= 180:
-            findings.append(Finding(WARN, "Recently registered domain",
-                                    f"{domain} was registered {age} days ago.",
-                                    weight=10, category="reputation"))
-        else:
-            findings.append(Finding(INFO, "Domain age",
-                                    f"{domain} registered {age // 365} year(s) ago.",
-                                    category="reputation"))
 
     vt_key = os.environ.get("VT_API_KEY", "")
     abuse_key = os.environ.get("ABUSEIPDB_API_KEY", "")
     urlhaus_key = os.environ.get("URLHAUS_API_KEY", "")
 
+    # Every provider call is independent network I/O with an 8s timeout, so
+    # run them all concurrently: worst case drops from the SUM of the slow
+    # calls to the single slowest one. Results keep deterministic order.
+    tasks: list = []
+    tasks += [lambda d=d: _age_finding(d) for d in domains[:5]]
     if vt_key:
-        for domain in domains[:4]:
-            if f := _virustotal_domain(domain, vt_key):
-                findings.append(f)
+        tasks += [lambda d=d: _virustotal_domain(d, vt_key) for d in domains[:4]]
     if abuse_key and sender_ip:
-        if f := _abuseipdb(sender_ip, abuse_key):
-            findings.append(f)
-    if urlhaus_key:
-        flagged = 0
-        for u in urls[:10]:
-            if f := _urlhaus(u.url, urlhaus_key):
-                findings.append(f)
-                flagged += 1
-        if urls and not flagged:
+        tasks.append(lambda: _abuseipdb(sender_ip, abuse_key))
+    urlhaus_tasks = [lambda u=u: _urlhaus(u.url, urlhaus_key)
+                     for u in urls[:10]] if urlhaus_key else []
+
+    findings: list[Finding] = []
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        urlhaus_results = pool.map(lambda t: t(), urlhaus_tasks) \
+            if urlhaus_tasks else []
+        findings += [f for f in pool.map(lambda t: t(), tasks) if f]
+        urlhaus_hits = [f for f in urlhaus_results if f]
+        findings += urlhaus_hits
+        if urlhaus_tasks and urls and not urlhaus_hits:
             findings.append(Finding(INFO, "URLhaus",
                                     f"0 of {len(urls)} links listed on URLhaus.",
                                     category="reputation"))

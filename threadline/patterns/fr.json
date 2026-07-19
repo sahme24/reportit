@@ -1,0 +1,42 @@
+{
+  "_comment": "French scam patterns (Canadian French first: ARC/CRA, Postes Canada, Desjardins, Interac lures). Phrasing informed by common SignalSpam-style French phishing wording; refine against the real dataset when available. Matching is case-insensitive substring on the casefolded message.",
+  "urgency": [
+    "expire aujourd'hui", "dans les 24 heures", "sous 24 heures", "sous 24h",
+    "dernier rappel", "avis final", "dernier avis", "action requise",
+    "action immédiate", "immédiatement", "dès maintenant",
+    "votre compte sera suspendu", "votre compte a été suspendu",
+    "votre compte sera fermé", "votre compte a été bloqué",
+    "compte bloqué", "compte suspendu", "compte désactivé",
+    "vérifiez votre compte", "confirmez votre identité",
+    "activité inhabituelle", "connexion inhabituelle",
+    "paiement refusé", "paiement échoué", "défaut de paiement",
+    "sous peine de", "mesures légales", "poursuites judiciaires"
+  ],
+  "urgency_sms_extra": [
+    "colis en attente", "livraison échouée", "échec de livraison",
+    "frais de douane", "frais de livraison", "remboursement",
+    "virement interac", "virement en attente", "solde impayé",
+    "facture impayée", "péage impayé", "reprogrammer la livraison",
+    "réclamez", "déclaration de revenus", "trop-perçu"
+  ],
+  "info_request": [
+    "entrez votre nip", "confirmez votre nip", "votre code nip",
+    "entrez votre mot de passe", "confirmez votre mot de passe",
+    "numéro d'assurance sociale", "votre nas",
+    "numéro de carte", "code de sécurité", "cryptogramme",
+    "date d'expiration et", "vos informations bancaires",
+    "coordonnées bancaires", "informations de paiement",
+    "mettez à jour votre paiement", "mettre à jour vos informations",
+    "vérifiez vos informations", "identifiants de connexion",
+    "code à usage unique", "code de vérification"
+  ],
+  "authority": [
+    "agence du revenu du canada", "agence du revenu", "revenu canada",
+    "revenu québec", "service canada", "gouvernement du canada",
+    "postes canada", "société canadienne des postes",
+    "votre banque", "votre institution financière",
+    "service de fraude", "département de sécurité",
+    "agence des services frontaliers", "bureau de douane",
+    "mandat d'arrêt", "ordonnance du tribunal", "remboursement gouvernemental"
+  ]
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 from . import ocr
 from .advice import advice_for
 from .auth import URGENCY_PHRASES, auth_findings
+from .content import content_findings
 from .models import (BAD, INFO, OK, WARN, Case, ChainNode, Finding, UrlInfo,
                      case_id_for)
 from .parser import ParsedEmail, parse_email
@@ -196,7 +197,13 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
     seen_urls = {u.url for u in urls}
     urls += [u for u in image_urls if u.url not in seen_urls]
 
+    # Language-aware content signals (urgency, info requests, authority
+    # claims, template anomalies) from the config-driven layer.
+    language, lang_findings, matched_phrases = content_findings(
+        f"{email.subject}\n{email.body_text}")
+
     findings = auth_findings(email)
+    findings += lang_findings
     findings += image_findings
     findings += _url_findings(urls)
     findings += _attachment_findings(email.attachments)
@@ -211,9 +218,8 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
     preview = (email.body_text or email.body_html)[:600]
 
     # Substrings the UI should visually mark inside the body preview:
-    # matched pressure phrases plus every link that raised a flag.
-    lowered = f"{email.subject}\n{email.body_text}".lower()
-    highlights = [p for p in URGENCY_PHRASES if p in lowered]
+    # matched content phrases plus every link that raised a flag.
+    highlights = list(dict.fromkeys(matched_phrases))
     highlights += [u.url for u in urls if u.flags]
 
     return Case(
@@ -241,6 +247,7 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
         chain=_build_chain(email, urls, findings),
         body_preview=preview,
         attachments=email.attachments,
+        language=language,
         highlights=highlights,
         recommendations=advice_for("email", verdict, findings),
     )

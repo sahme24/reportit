@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .content import _patterns
 from .models import BAD, INFO, OK, WARN, Finding
 from .parser import ParsedEmail
 from .urlscan import BRANDS, _deglyph, _registered_domain, match_brand
@@ -11,12 +12,9 @@ FREEMAIL = {
     "proton.me", "protonmail.com", "icloud.com", "mail.com", "gmx.com",
 }
 
-URGENCY_PHRASES = (
-    "expires today", "expire in 24", "within 24 hours", "account will be closed",
-    "account has been suspended", "verify your account", "immediate action",
-    "action required", "final notice", "unusual sign-in", "unusual activity",
-    "confirm your identity", "keep your account active", "payment failed",
-)
+# Kept as a public name for existing callers (OCR pressure check), but the
+# single source of truth is now threadline/patterns/en.json.
+URGENCY_PHRASES = tuple(_patterns("en").get("urgency", []))
 
 
 def _fail(result: str) -> bool:
@@ -111,14 +109,7 @@ def auth_findings(email: ParsedEmail) -> list[Finding]:
                                     f"official role but sends from @{from_domain}.",
                                     weight=15, category="domain"))
 
-    # --- Urgency / pressure language ----------------------------------------
-    text = f"{email.subject}\n{email.body_text}".lower()
-    hits = [p for p in URGENCY_PHRASES if p in text]
-    if hits:
-        findings.append(Finding(WARN, "Urgency and pressure language",
-                                'Uses classic pressure phrasing: '
-                                + ", ".join(f'"{h}"' for h in hits[:3])
-                                + ("…" if len(hits) > 3 else "."),
-                                weight=min(5 * len(hits), 15), category="content"))
-
+    # Urgency/pressure and the other content-language signals now live in
+    # threadline/content.py (language-aware, config-driven); scanner.scan
+    # calls it directly so this module stays header-focused.
     return findings

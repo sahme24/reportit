@@ -1,0 +1,36 @@
+{
+  "_comment": "English scam patterns. Matching is case-insensitive substring. Edit freely; no code changes needed. Families: urgency (pressure/deadline language), urgency_sms_extra (SMS-only additions), info_request (asks for credentials/identity/payment), authority (claims to BE an institution; scored only when the message also carries a link or callback).",
+  "urgency": [
+    "expires today", "expire in 24", "within 24 hours", "account will be closed",
+    "account has been suspended", "verify your account", "immediate action",
+    "action required", "final notice", "unusual sign-in", "unusual activity",
+    "confirm your identity", "keep your account active", "payment failed",
+    "act immediately", "urgent response", "your account will be terminated",
+    "failure to comply", "legal action will be taken", "last warning"
+  ],
+  "urgency_sms_extra": [
+    "final notice", "last reminder", "act now", "expires today", "expire",
+    "within 24 hours", "on hold", "unpaid", "toll", "refund", "rebate",
+    "e-transfer", "etransfer", "suspended", "locked", "verify your",
+    "claim", "tax return", "failed delivery", "redelivery", "customs fee",
+    "outstanding balance", "avoid penalties"
+  ],
+  "info_request": [
+    "enter your pin", "confirm your pin", "verify your pin",
+    "enter your password", "confirm your password", "re-enter your password",
+    "social insurance number", "social security number", "sin number",
+    "date of birth and", "mother's maiden name",
+    "card number and", "cvv", "security code on the back",
+    "update your payment information", "update your billing information",
+    "confirm your banking", "confirm your card", "verify your payment method",
+    "provide your credentials", "login credentials", "one-time passcode",
+    "send us your code", "read me the code", "gift card codes"
+  ],
+  "authority": [
+    "canada revenue agency", "revenue agency", "service canada",
+    "internal revenue service", "social security administration",
+    "your bank", "bank security department", "fraud department",
+    "border services", "customs office", "police department",
+    "court order", "arrest warrant", "government refund"
+  ]
+}

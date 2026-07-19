@@ -51,6 +51,7 @@ class Case:
     body_preview: str
     attachments: list[dict]
     kind: str = "email"                                  # email | sms
+    language: str = "en"                                 # detected message language: en | fr | ar
     highlights: list[str] = field(default_factory=list)  # substrings of the body worth marking
     recommendations: list[str] = field(default_factory=list)  # what the recipient should do now
 
