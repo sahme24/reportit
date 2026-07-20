@@ -178,7 +178,6 @@
 
 <section class="section wrap" id="how">
   <div class="section-head">
-    <span class="microlabel">How it works</span>
     <h2>From "this looks off" to a full verdict in three steps.</h2>
   </div>
   <div class="cards-3">
@@ -210,7 +209,6 @@
 
 <section class="section wrap" id="why">
   <div class="section-head">
-    <span class="microlabel">Why ReportIT.ai exists</span>
     <h2>Enterprises have SOC teams. You have a spam folder.</h2>
     <p>When a suspicious email lands at a big company, trained analysts investigate
        it with commercial tools. When the same email lands in your inbox, or your
@@ -247,7 +245,6 @@
 
 <section class="section wrap trust" id="trust">
   <div>
-    <span class="microlabel">Privacy by design</span>
     <h2>Your messages are evidence, not data to keep.</h2>
     <p class="big">
       A tool that reads suspicious email has to be careful with it. ReportIT.ai
@@ -275,7 +272,6 @@
 
 <section class="section wrap" id="faq">
   <div class="section-head">
-    <span class="microlabel">FAQ</span>
     <h2>Questions people actually ask.</h2>
   </div>
   <div class="faq-list" id="faqList"></div>
@@ -293,7 +289,7 @@
 </div>
 
 <footer class="footer">
-  <div class="wrap">
+  <div class="wrap footer-row">
     <span>ReportIT.ai. Phishing and smishing investigation for everyone.
       Built by <a href="https://www.linkedin.com/in/salmanahmed18" target="_blank" rel="noopener">Salman Ahmed</a>.</span>
     <span>
@@ -303,12 +299,14 @@
       <a href="/login">Sign in</a>
     </span>
   </div>
+  <div class="wrap footer-copyright">&copy; <span id="footerYear"></span> ReportIT.ai. All rights reserved.</div>
 </footer>
 
 <script src="/static/shared.js"></script>
 <script src="/static/effects.js"></script>
 <script>
 ReportIT.topbar("/");
+document.getElementById("footerYear").textContent = new Date().getFullYear();
 
 /* React Bits effects (vanilla ports in effects.js) */
 ReportITFX.splitText(document.getElementById("heroTitle"), {delay: 34, duration: 0.7});
