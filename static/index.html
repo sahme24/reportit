@@ -11,9 +11,28 @@
 <link rel="stylesheet" href="/static/theme.css">
 <style>
   /* hero */
-  .hero{text-align:center;padding:72px 0 34px;}
+  .hero{text-align:center;padding:72px 0 34px;position:relative;}
   .hero h1{font-size:clamp(30px,4.6vw,46px);font-weight:700;letter-spacing:-0.02em;}
   .hero h1 .accent{color:var(--primary);}
+
+  /* SplitText (vanilla port): staggered per-character reveal */
+  .split-word{display:inline-block;white-space:nowrap;}
+  .split-char{display:inline-block;opacity:0;transform:translateY(40px);}
+  .split-done .split-char{opacity:1;transform:none;}
+
+  /* MagnetLines (vanilla port): decorative pointer-tracking line grids */
+  .magnet-wrap{
+    position:absolute;top:86px;width:220px;height:220px;opacity:0.5;
+    pointer-events:none;display:grid;justify-items:center;align-items:center;
+  }
+  #magnetL{left:calc(50% - 630px);}
+  #magnetR{right:calc(50% - 630px);}
+  @media (max-width:1280px){.magnet-wrap{display:none;}}
+  .magnet-wrap span{
+    display:block;transform-origin:center;will-change:transform;
+    background:var(--line-strong);border-radius:2px;
+    transform:rotate(var(--rotate));
+  }
   .hero .lede{
     color:var(--dim);font-size:17px;max-width:62ch;margin:18px auto 0;line-height:1.7;
   }
@@ -113,12 +132,17 @@
   .faq-item.open .faq-a{max-height:320px;}
   .faq-a > div{padding:0 24px 20px;}
 
+  /* Final CTA: dark panel with the Beams (vanilla port) canvas behind it.
+     Fixed dark colors in both themes, like a lit stage. */
   .cta-final{
-    text-align:center;padding:54px 26px;margin-top:76px;
-    background:var(--primary-wash);border:1px solid var(--line);border-radius:18px;
+    text-align:center;padding:64px 26px;margin-top:76px;
+    position:relative;overflow:hidden;
+    background:#080d1d;border:1px solid #1c2a4e;border-radius:18px;
   }
-  .cta-final h2{font-size:clamp(22px,2.8vw,29px);font-weight:700;margin-bottom:10px;}
-  .cta-final p{color:var(--dim);margin:0 0 24px;}
+  .cta-final canvas{position:absolute;inset:0;width:100%;height:100%;}
+  .cta-inner{position:relative;z-index:1;}
+  .cta-final h2{font-size:clamp(22px,2.8vw,29px);font-weight:700;margin-bottom:10px;color:#f2f6ff;}
+  .cta-final p{color:#93a5c6;margin:0 0 24px;}
 </style>
 </head>
 <body>
@@ -131,7 +155,9 @@
       <b id="threatCount">40+</b>&nbsp;threats detected so far
     </span>
   </div>
-  <h1>Ever gotten a <span class="accent">phishing email</span>?<br>Now you can fight back.</h1>
+  <div class="magnet-wrap" id="magnetL" aria-hidden="true"></div>
+  <div class="magnet-wrap" id="magnetR" aria-hidden="true"></div>
+  <h1 id="heroTitle">Ever gotten a <span class="accent">phishing email</span>?<br>Now you can fight back.</h1>
   <p class="lede">
     Everyone has, and most of us just delete it and hope. ReportIT.ai reads a
     suspicious email <b>or text message</b> the way a security analyst would: it
@@ -257,9 +283,12 @@
 
 <div class="wrap">
   <div class="cta-final">
-    <h2>The next suspicious email doesn't have to be a guess.</h2>
-    <p>Free account, no card required.</p>
-    <a href="/login?mode=signup" class="btn primary" style="font-size:15px;padding:12px 26px;">Start Free →</a>
+    <canvas id="ctaBeams" aria-hidden="true"></canvas>
+    <div class="cta-inner">
+      <h2>The next suspicious email doesn't have to be a guess.</h2>
+      <p>Free account, no card required.</p>
+      <a href="/login?mode=signup" class="btn primary" style="font-size:15px;padding:12px 26px;">Start Free →</a>
+    </div>
   </div>
 </div>
 
@@ -277,8 +306,18 @@
 </footer>
 
 <script src="/static/shared.js"></script>
+<script src="/static/effects.js"></script>
 <script>
 ReportIT.topbar("/");
+
+/* React Bits effects (vanilla ports in effects.js) */
+ReportITFX.splitText(document.getElementById("heroTitle"), {delay: 34, duration: 0.7});
+ReportITFX.magnetLines(document.getElementById("magnetL"), {rows: 7, columns: 7, lineWidth: "2px", lineHeight: "15px"});
+ReportITFX.magnetLines(document.getElementById("magnetR"), {rows: 7, columns: 7, lineWidth: "2px", lineHeight: "15px"});
+ReportITFX.beams(document.getElementById("ctaBeams"), {
+  beamNumber: 14, speed: 2, noiseIntensity: 1.75, scale: 1.6,
+  rotation: 30, lightColor: "#7fa8ff",
+});
 
 /* feature tabs */
 const icon = d => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
