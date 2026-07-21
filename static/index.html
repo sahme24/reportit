@@ -71,23 +71,28 @@
   .section-head h2{font-size:clamp(24px,3vw,32px);font-weight:700;margin:10px 0 14px;}
   .section-head p{color:var(--dim);font-size:15.5px;line-height:1.75;margin:0;}
 
-  .cards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
-  @media (max-width:820px){.cards-3{grid-template-columns:1fr;}}
-  .how-card{padding:26px;}
-  .how-card .stepnum{
-    font-family:'Poppins',sans-serif;font-weight:700;font-size:13px;color:var(--primary);
-    background:var(--primary-wash);border-radius:999px;padding:4px 14px;display:inline-block;
-    margin-bottom:14px;
+  /* A divided list reads as a written walkthrough, not a row of matching
+     component-library cards: no borders/shadows around each step, no
+     colored pill badges, just a rule and a quiet numeral. */
+  .how-steps{max-width:720px;margin:0 auto;}
+  .how-step{
+    display:flex;gap:26px;align-items:flex-start;padding:26px 0;
+    border-top:1px solid var(--line);
   }
-  .how-card h3{font-size:16.5px;margin-bottom:9px;}
-  .how-card p{color:var(--dim);font-size:14px;margin:0;line-height:1.7;}
+  .how-step:first-child{border-top:none;padding-top:0;}
+  .how-num{
+    font-family:'Poppins',sans-serif;font-weight:700;font-size:30px;
+    color:var(--line-strong);flex-shrink:0;width:44px;line-height:1;
+  }
+  .how-step h3{font-size:16.5px;margin-bottom:7px;}
+  .how-step p{color:var(--dim);font-size:14px;margin:0;line-height:1.7;}
 
-  .why-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
-  @media (max-width:900px){.why-grid{grid-template-columns:1fr 1fr;}}
-  @media (max-width:560px){.why-grid{grid-template-columns:1fr;}}
-  .why-card{padding:24px;box-shadow:var(--shadow);}
-  .why-card h3{font-size:19px;margin:12px 0 8px;}
-  .why-card p{color:var(--dim);font-size:13.5px;margin:0;line-height:1.7;}
+  /* Icon-and-text rows instead of a 4-up grid of identical boxed cards. */
+  .why-list{display:grid;grid-template-columns:1fr 1fr;gap:32px 40px;}
+  @media (max-width:700px){.why-list{grid-template-columns:1fr;}}
+  .why-item{display:flex;gap:16px;align-items:flex-start;}
+  .why-item h3{font-size:16px;margin-bottom:5px;}
+  .why-item p{color:var(--dim);font-size:13.5px;margin:0;line-height:1.65;}
 
   .trust{display:grid;grid-template-columns:1.15fr 1fr;gap:44px;align-items:center;}
   @media (max-width:820px){.trust{grid-template-columns:1fr;}}
@@ -149,12 +154,6 @@
 <div id="topbar"></div>
 
 <section class="hero wrap">
-  <div style="margin-bottom:18px;">
-    <span class="badge-new" id="threatBadge" style="font-size:13px;padding:6px 16px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px;"><path d="M12 2 L20 5.5 V11 C20 16.5 16.8 20.4 12 22 C7.2 20.4 4 16.5 4 11 V5.5 Z"/><path d="M8.7 12 L11 14.3 L15.3 9.6"/></svg>
-      <b id="threatCount">40+</b>&nbsp;threats detected so far
-    </span>
-  </div>
   <div class="magnet-wrap" id="magnetL" aria-hidden="true"></div>
   <div class="magnet-wrap" id="magnetR" aria-hidden="true"></div>
   <h1 id="heroTitle">Ever gotten a <span class="accent">phishing email</span>?<br>Now you can fight back.</h1>
@@ -180,29 +179,35 @@
   <div class="section-head">
     <h2>From "this looks off" to a full verdict in three steps.</h2>
   </div>
-  <div class="cards-3">
-    <div class="panel how-card lift">
-      <span class="stepnum">STEP 01</span>
-      <h3>Paste the raw email</h3>
-      <p>In Gmail: "Show original". In Outlook: "View message source".
-         Copy everything (headers included) and paste it in. Your email is
-         analyzed on the server you're using and never forwarded anywhere.</p>
-      <p style="margin-top:10px;"><a href="/scan#howto" style="font-weight:600;font-size:13.5px;">Watch the 15-second walkthrough →</a></p>
+  <div class="how-steps">
+    <div class="how-step">
+      <span class="how-num">01</span>
+      <div>
+        <h3>Paste the raw email</h3>
+        <p>In Gmail: "Show original". In Outlook: "View message source".
+           Copy everything (headers included) and paste it in. Your email is
+           analyzed on the server you're using and never forwarded anywhere.
+           <a href="/scan#howto" style="font-weight:600;">Watch the 15-second walkthrough →</a></p>
+      </div>
     </div>
-    <div class="panel how-card lift">
-      <span class="stepnum">STEP 02</span>
-      <h3>We investigate like an analyst</h3>
-      <p>SPF/DKIM/DMARC verification, true sender IP recovery, typosquat hunting
-         (<span class="mono">0ffice365</span>, <span class="mono">paypa1</span>),
-         domain-age checks via RDAP, and lookups against VirusTotal, AbuseIPDB,
-         and URLhaus.</p>
+    <div class="how-step">
+      <span class="how-num">02</span>
+      <div>
+        <h3>We investigate like an analyst</h3>
+        <p>SPF/DKIM/DMARC verification, true sender IP recovery, typosquat hunting
+           (<span class="mono">0ffice365</span>, <span class="mono">paypa1</span>),
+           domain-age checks via RDAP, and lookups against VirusTotal, AbuseIPDB,
+           and URLhaus.</p>
+      </div>
     </div>
-    <div class="panel how-card lift">
-      <span class="stepnum">STEP 03</span>
-      <h3>Read the verdict, keep the proof</h3>
-      <p>A 0–100 risk score, every finding explained in plain language, the
-         attack chain traced sender → link → landing page, and an exportable
-         report you can hand to your IT team or any abuse desk.</p>
+    <div class="how-step">
+      <span class="how-num">03</span>
+      <div>
+        <h3>Read the verdict, keep the proof</h3>
+        <p>A 0–100 risk score, every finding explained in plain language, the
+           attack chain traced sender → link → landing page, and an exportable
+           report you can hand to your IT team or any abuse desk.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -215,30 +220,38 @@
        parents', there's nobody. ReportIT.ai puts that entire investigation,
        automated, in everyone's hands.</p>
   </div>
-  <div class="why-grid">
-    <div class="panel why-card">
+  <div class="why-list">
+    <div class="why-item">
       <div class="icon-chip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L20 5.5 V11 C20 16.5 16.8 20.4 12 22 C7.2 20.4 4 16.5 4 11 V5.5 Z"/><path d="M8.7 12 L11 14.3 L15.3 9.6"/></svg></div>
-      <h3>Analyst-grade</h3>
-      <p>40+ checks across headers, URLs, attachments, and content: the same
-         playbook a SOC analyst runs by hand.</p>
+      <div>
+        <h3>Analyst-grade</h3>
+        <p>40+ checks across headers, URLs, attachments, and content: the same
+           playbook a SOC analyst runs by hand.</p>
+      </div>
     </div>
-    <div class="panel why-card">
+    <div class="why-item">
       <div class="icon-chip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 L4 14 H11 L10 22 L20 9 H13 Z"/></svg></div>
-      <h3>Instant</h3>
-      <p>Seconds per case, not a support ticket. Paste, scan, done, and repeat
-         offenders are flagged automatically.</p>
+      <div>
+        <h3>Instant</h3>
+        <p>Seconds per case, not a support ticket. Paste, scan, done, and repeat
+           offenders are flagged automatically.</p>
+      </div>
     </div>
-    <div class="panel why-card">
+    <div class="why-item">
       <div class="icon-chip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2 H21 V10.5 L11 20.5 C10.2 21.3 8.9 21.3 8.1 20.5 L3.5 15.9 C2.7 15.1 2.7 13.8 3.5 13 Z"/><circle cx="16.5" cy="6.5" r="1.5"/></svg></div>
-      <h3>Free for everyone</h3>
-      <p>No enterprise contract, no card. Threat-intel lookups run on free public
-         APIs, or fully offline if you prefer.</p>
+      <div>
+        <h3>Free for everyone</h3>
+        <p>No enterprise contract, no card. Threat-intel lookups run on free public
+           APIs, or fully offline if you prefer.</p>
+      </div>
     </div>
-    <div class="panel why-card">
+    <div class="why-item">
       <div class="icon-chip"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2 H14.5 L19.5 7 V22 H6.5 Z"/><path d="M14.5 2 V7 H19.5"/><line x1="9.5" y1="12.5" x2="16.5" y2="12.5"/><line x1="9.5" y1="16.5" x2="16.5" y2="16.5"/></svg></div>
-      <h3>Evidence you can use</h3>
-      <p>Every case exports a defanged, SOC-ready report, perfect for warning
-         your company, family, or an abuse desk.</p>
+      <div>
+        <h3>Evidence you can use</h3>
+        <p>Every case exports a defanged, SOC-ready report, perfect for warning
+           your company, family, or an abuse desk.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -400,15 +413,6 @@ function toggleFaq(i){
   el.querySelector(".faq-q").setAttribute("aria-expanded", open);
 }
 
-/* Public threat counter. Never shows a small or zero number, floors at
-   40 and always reads as a growing count (Claude/ChatGPT-style "40+"). */
-(async () => {
-  try {
-    const s = await (await fetch("/api/stats")).json();
-    const shown = s.threats < 40 ? "40+" : s.threats.toLocaleString() + "+";
-    document.getElementById("threatCount").textContent = shown;
-  } catch {}
-})();
 </script>
 </body>
 </html>
