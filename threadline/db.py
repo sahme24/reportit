@@ -84,10 +84,21 @@ def init_db() -> None:
             conn.execute("ALTER TABLE users ADD COLUMN google_sub TEXT")
         except sqlite3.OperationalError:
             pass  # column already exists
+    purge_stale()
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def purge_stale() -> None:
+    """Credential hygiene: expired sessions and dead OAuth states are
+    useless the moment they lapse, so don't let them accumulate. Runs at
+    startup and on every login, cheap enough to never need a scheduler."""
+    cutoff = (datetime.now(timezone.utc) - _OAUTH_STATE_MAX_AGE).isoformat()
+    with _connect() as conn:
+        conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (_now(),))
+        conn.execute("DELETE FROM oauth_states WHERE created_at < ?", (cutoff,))
 
 
 # --------------------------------------------------------------------------
@@ -135,6 +146,7 @@ def _public_user(row: sqlite3.Row) -> dict:
 
 
 def create_session(user_id: int) -> str:
+    purge_stale()
     token = secrets.token_urlsafe(32)
     expires = (datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)).isoformat()
     with _connect() as conn:

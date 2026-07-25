@@ -149,7 +149,9 @@ def test_scan_quota_enforced(monkeypatch):
 def test_explain_retry_does_not_spend_quota(monkeypatch):
     """/api/explain retries the AI portion of an already-scanned case; it
     must not re-check or consume the scan quota, since that's spent once
-    when the scan itself runs."""
+    when the scan itself runs. It does, however, require that a scan
+    actually happened: with no recorded AI use there's nothing to retry,
+    and an ungated endpoint would be a free side door to the AI."""
     c = _signed_in_client()
     monkeypatch.setattr(app_module.ai, "is_configured", lambda: True)
     monkeypatch.setattr(app_module.ai, "analyze_case", lambda case: {
@@ -157,6 +159,13 @@ def test_explain_retry_does_not_spend_quota(monkeypatch):
         "summary": "stub", "actions": []})
 
     payload = {"case": {"verdict": "MALICIOUS"}}
+    # No scan yet -> nothing to retry.
+    assert c.post("/api/explain", json=payload).status_code == 400
+
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+    assert c.post("/api/scan", json={"raw": raw}).status_code == 200
+
+    # Retries after a real scan are unmetered, even past the daily limit.
     responses = [c.post("/api/explain", json=payload)
                  for _ in range(app_module._AI_DAILY_LIMIT + 2)]
     assert all(r.status_code == 200 for r in responses)
@@ -174,3 +183,55 @@ def test_personal_dashboard_stats():
 def test_public_stats_expose_threats():
     s = client.get("/api/stats").json()
     assert "threats" in s and s["threats"] >= 0
+
+
+# ------------------------------------------------------------- security
+
+def test_security_headers_on_every_response():
+    r = client.get("/")
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    assert r.headers["X-Frame-Options"] == "DENY"
+    assert "frame-ancestors 'none'" in r.headers["Content-Security-Policy"]
+    assert r.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+
+def test_api_responses_are_never_cacheable():
+    # Behind a CDN, a cached per-user API response served to the wrong
+    # person is a cross-user data leak. Every /api/ response must opt out.
+    for path in ("/api/me", "/api/stats", "/api/config"):
+        assert client.get(path).headers["Cache-Control"] == "no-store", path
+
+
+def test_oversized_scan_rejected():
+    c = _signed_in_client()
+    r = c.post("/api/scan", json={"raw": "x" * 2_000_000, "offline": True})
+    assert r.status_code == 413
+
+
+def test_history_is_isolated_between_users():
+    """User B must never see user A's cases: every history/stats query is
+    scoped to the session's own user id."""
+    a, b = _signed_in_client(), _signed_in_client()
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+    case = a.post("/api/scan", json={"raw": raw, "offline": True}).json()
+
+    a_ids = {s["case_id"] for s in a.get("/api/history").json()["scans"]}
+    b_ids = {s["case_id"] for s in b.get("/api/history").json()["scans"]}
+    assert case["case_id"] in a_ids
+    assert case["case_id"] not in b_ids
+    assert b.get("/api/my/stats").json()["scans"] == 0
+
+
+def test_expired_sessions_are_purged():
+    n = next(_next_user)
+    user = db.upsert_google_user(f"purge{n}@example.com", "Purge", f"sub-p{n}")
+    token = db.create_session(user["id"])
+    with db._connect() as conn:
+        conn.execute("UPDATE sessions SET expires_at = '2000-01-01T00:00:00'"
+                     " WHERE token = ?", (token,))
+    db.purge_stale()
+    assert db.user_for_session(token) is None
+    with db._connect() as conn:
+        row = conn.execute("SELECT 1 FROM sessions WHERE token = ?",
+                           (token,)).fetchone()
+    assert row is None

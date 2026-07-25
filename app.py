@@ -67,6 +67,44 @@ async def canonicalize_host(request: Request, call_next):
     return await call_next(request)
 
 
+# Everything the site needs and nothing more: same-origin by default,
+# inline scripts/styles (the pages use them), Google Fonts, data: images
+# (favicons/SVG). No frames, no plugins, no cross-origin fetches.
+_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; img-src 'self' data:; "
+        "connect-src 'self'; object-src 'none'; base-uri 'self'; "
+        "form-action 'self'; frame-ancestors 'none'")
+
+
+def _is_https(request: Request) -> bool:
+    # Behind Firebase Hosting / Cloud Run the TLS hop terminates upstream,
+    # so the original scheme arrives in X-Forwarded-Proto.
+    return request.headers.get(
+        "x-forwarded-proto", request.url.scheme) == "https"
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    h = response.headers
+    h.setdefault("Content-Security-Policy", _CSP)
+    h.setdefault("X-Content-Type-Options", "nosniff")
+    h.setdefault("X-Frame-Options", "DENY")
+    h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if _is_https(request):
+        h.setdefault("Strict-Transport-Security",
+                     "max-age=31536000; includeSubDomains")
+    # Per-user responses must never be cached: this app sits behind a CDN
+    # (Firebase Hosting/Fastly), and a cached /api/* response served to the
+    # wrong person would be a cross-user data leak. no-store closes that
+    # class of bug outright, for every cache between us and the browser.
+    if request.url.path.startswith(("/api/", "/auth/")):
+        h["Cache-Control"] = "no-store"
+    return response
+
+
 # Firebase Hosting's rewrite to Cloud Run strips every request cookie
 # except one literally named "__session" -- this MUST be that name, or
 # nobody can stay signed in when the app is accessed via Firebase Hosting.
@@ -156,9 +194,12 @@ def auth_google_callback(request: Request, code: str = "", state: str = ""
     user = db.upsert_google_user(info["email"], info.get("name", ""),
                                  info.get("sub", ""))
     response = RedirectResponse("/dashboard")
+    # secure=True everywhere except plain-HTTP local dev, so the session
+    # token can never travel over an unencrypted connection.
     response.set_cookie(_COOKIE, db.create_session(user["id"]),
                         max_age=db.SESSION_DAYS * 86400,
-                        httponly=True, samesite="lax")
+                        httponly=True, samesite="lax",
+                        secure=_is_https(request))
     return response
 
 
@@ -230,10 +271,21 @@ def _ai_opinion(case_dict: dict) -> dict | None:
         return None
 
 
+# Generous for any real email (most are under 100 KB with headers), but a
+# hard stop against someone feeding the parser/OCR multi-hundred-MB blobs.
+_MAX_RAW_CHARS = 1_500_000
+
+
 @app.post("/api/scan")
 def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
     if not req.raw.strip():
         raise HTTPException(status_code=400, detail="Paste a message first.")
+    if len(req.raw) > _MAX_RAW_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail="That message is too large to scan (1.5 MB limit). "
+                   "Paste the headers plus the visible body, not an "
+                   "entire mailbox export.")
 
     # Every online scan runs the full toolset plus the AI analysis as one
     # unit, so the daily quota gates the scan itself, not a separate "AI
@@ -339,6 +391,16 @@ def api_explain(req: ExplainRequest, user: dict = Depends(require_user)) -> dict
             status_code=503,
             detail="The AI analyst isn't configured on this server. Add an "
                    "ANTHROPIC_API_KEY to .env to enable it.")
+    # This endpoint exists only to retry a scan that already spent a quota
+    # slot. Requiring a recorded use in the window (and a sane payload
+    # size) stops it from being a free, unmetered side door to the AI.
+    if len(str(req.case)) > 100_000:
+        raise HTTPException(status_code=413, detail="Case payload too large.")
+    used, _ = db.ai_usage(user["id"])
+    if used == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Nothing to retry: run a scan first.")
     try:
         return ai.analyze_case(req.case)
     except anthropic.RateLimitError:
