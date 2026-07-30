@@ -293,7 +293,7 @@ _SANDBOX_MAX_SHOT_B64 = 550_000
 
 
 @app.post("/api/scan")
-def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
+async def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
     if not req.raw.strip():
         raise HTTPException(status_code=400, detail="Paste a message first.")
     if len(req.raw) > _MAX_RAW_CHARS:
@@ -320,13 +320,34 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
                                    "hours after it ran.",
                         "refresh_at": refresh_at})
 
+    # Off the event loop: scan() is synchronous and does blocking network I/O,
+    # so running it inline would stall every other request on this worker.
     if req.kind == "sms":
-        case = scan_sms(req.raw, sender=req.sender, offline=req.offline,
-                        enrich=_sms_enrichment)
+        case = await asyncio.to_thread(
+            scan_sms, req.raw, sender=req.sender, offline=req.offline,
+            enrich=_sms_enrichment)
     else:
-        case = scan(req.raw, offline=req.offline, enrich=_email_enrichment)
+        case = await asyncio.to_thread(
+            scan, req.raw, offline=req.offline, enrich=_email_enrichment)
 
-    return _finalize_case(case, user, ai_enabled, used)
+    # Links get detonated here too, not only on the streaming endpoint.
+    # Firebase Hosting doesn't forward WebSocket upgrades, so for anyone on
+    # the public domain this is the only path that runs -- gating the sandbox
+    # on the transport would make it unreachable for real users.
+    sandbox_results = await _detonate_case(case, req.offline)
+
+    result = await asyncio.to_thread(
+        _finalize_case, case, user, ai_enabled, used)
+    if sandbox_results:
+        result["sandbox"] = [{k: v for k, v in r.items() if k != "screenshot"}
+                             for r in sandbox_results]
+        result["sandbox_screenshots"] = [
+            {"landed_on": r.get("landed_on", ""),
+             "screenshot": r["screenshot"]}
+            for r in sandbox_results
+            if r.get("screenshot")
+            and len(r["screenshot"]) <= _SANDBOX_MAX_SHOT_B64]
+    return result
 
 
 def _finalize_case(case, user: dict, ai_enabled: bool, used: int) -> dict:
@@ -357,6 +378,73 @@ def _finalize_case(case, user: dict, ai_enabled: bool, used: int) -> dict:
 
     db.record_scan(user["id"], result)
     return result
+
+
+# Sentinel: the client hung up mid-detonation, so stop rather than finish.
+_ABORTED = object()
+
+
+async def _detonate_case(case, offline: bool, on_result=None):
+    """Open the case's links in a sandbox, fold the results into the case.
+
+    Shared by both scan endpoints. `on_result(url_info, result)` is awaited per
+    link for streaming callers and may return False to abort; POST callers pass
+    nothing. Returns the raw per-link results, or `_ABORTED`.
+
+    Detonation is skipped entirely for offline scans -- opening a link reveals
+    this server's IP to the sender and confirms the message was read, which is
+    exactly what offline mode promises not to do.
+    """
+    if offline or not (sandbox.is_available() and case.urls):
+        return []
+
+    targets = case.urls[:_SANDBOX_MAX_URLS]
+    if on_result and not await on_result(None, {"_starting": len(targets)}):
+        return _ABORTED
+
+    results: list[dict] = []
+    limiter = asyncio.Semaphore(_SANDBOX_CONCURRENCY)
+    aborted = False
+    try:
+        # One browser for the batch, a context per link: a browser per URL is
+        # hundreds of MB each and OOMs the container.
+        async with sandbox.browser_session() as browser:
+
+            async def run_one(url_info):
+                async with limiter:
+                    return url_info, await sandbox.detonate(
+                        url_info.url, timeout_ms=_SANDBOX_TIMEOUT_MS,
+                        browser=browser)
+
+            for coro in asyncio.as_completed([run_one(u) for u in targets]):
+                try:
+                    url_info, res = await coro
+                except Exception as e:
+                    logger.warning("detonation task failed: %s", e)
+                    continue
+                results.append(res)
+                finding = sandbox.sandbox_finding(res, url_info.defanged)
+                if finding:
+                    case.findings.append(finding)
+                if on_result and not await on_result(url_info, res):
+                    aborted = True
+                    break
+    except Exception as e:
+        # No browser on this host, or it died mid-batch. The scan still has
+        # every non-sandbox finding, so finish it rather than failing.
+        logger.warning("sandbox stage unavailable: %s", e)
+
+    if aborted:
+        return _ABORTED
+
+    if results:
+        # Findings changed, so score and verdict have to be recomputed rather
+        # than left at whatever the pre-sandbox pass decided.
+        case.findings.sort(key=lambda f: _SEV_ORDER.get(f.severity, 9))
+        case.score = min(sum(f.weight for f in case.findings), 100)
+        case.verdict, case.confidence = _verdict(case.score)
+        case.recommendations = advice_for(case.kind, case.verdict, case.findings)
+    return results
 
 
 @app.websocket("/ws/scan")
@@ -465,67 +553,30 @@ async def ws_scan(websocket: WebSocket,
     # it reveals this server's IP to the sender and confirms the message was
     # opened, so it only runs when Playwright is installed and the user
     # didn't ask for an offline scan.
-    sandbox_results: list[dict] = []
-    if sandbox.is_available() and not offline and case.urls:
-        targets = case.urls[:_SANDBOX_MAX_URLS]
-        if not await send("sandbox_starting", data={"url_count": len(targets)}):
-            return
-        limiter = asyncio.Semaphore(_SANDBOX_CONCURRENCY)
-        aborted = False
+    async def _emit_shot(url_info, res) -> bool:
+        if url_info is None:      # batch is starting
+            return await send("sandbox_starting",
+                              data={"url_count": res["_starting"]})
+        # A JPEG screenshot is ~40-150 KB of base64. Send it when it's
+        # reasonable and drop it when it isn't -- never truncate, since a
+        # sliced base64 string decodes to a broken image.
+        shot = res.get("screenshot")
+        if shot and len(shot) > _SANDBOX_MAX_SHOT_B64:
+            shot = None
+        return await send("sandbox_url_result", data={
+            "url": url_info.defanged,
+            "domain": url_info.domain,
+            "landed_on": res.get("landed_on", ""),
+            "title": res.get("title", ""),
+            "threat_level": res.get("threat_level", "none"),
+            "threat_signals": res.get("threat_signals", []),
+            "observations": res.get("observations", []),
+            "error": res.get("error", ""),
+            "screenshot": shot})
 
-        try:
-            # One browser for the batch, a context per link: launching a
-            # browser per URL is hundreds of MB each and OOMs the container.
-            async with sandbox.browser_session() as browser:
-
-                async def run_one(url_info):
-                    async with limiter:
-                        return url_info, await sandbox.detonate(
-                            url_info.url, timeout_ms=_SANDBOX_TIMEOUT_MS,
-                            browser=browser)
-
-                for coro in asyncio.as_completed([run_one(u) for u in targets]):
-                    try:
-                        url_info, res = await coro
-                    except Exception as e:
-                        logger.warning("detonation task failed: %s", e)
-                        continue
-                    sandbox_results.append(res)
-                    finding = sandbox.sandbox_finding(res, url_info.defanged)
-                    if finding:
-                        case.findings.append(finding)
-                    # A JPEG screenshot is ~40-150 KB of base64. Send it when
-                    # it's reasonable and drop it when it isn't -- never
-                    # truncate: sliced base64 decodes to a broken image.
-                    shot = res.get("screenshot")
-                    if shot and len(shot) > _SANDBOX_MAX_SHOT_B64:
-                        shot = None
-                    if not await send("sandbox_url_result", data={
-                            "url": url_info.defanged,
-                            "domain": url_info.domain,
-                            "landed_on": res.get("landed_on", ""),
-                            "title": res.get("title", ""),
-                            "threat_level": res.get("threat_level", "none"),
-                            "threat_signals": res.get("threat_signals", []),
-                            "observations": res.get("observations", []),
-                            "error": res.get("error", ""),
-                            "screenshot": shot}):
-                        aborted = True
-                        break
-        except Exception as e:
-            # No browser on this host, or it died. The scan still has every
-            # non-sandbox finding, so finish it rather than failing outright.
-            logger.warning("sandbox stage unavailable: %s", e)
-
-        if aborted:
-            return
-
-        # Findings changed, so the score and verdict have to be recomputed
-        # rather than left at whatever the pre-sandbox pass decided.
-        case.findings.sort(key=lambda f: _SEV_ORDER.get(f.severity, 9))
-        case.score = min(sum(f.weight for f in case.findings), 100)
-        case.verdict, case.confidence = _verdict(case.score)
-        case.recommendations = advice_for(case.kind, case.verdict, case.findings)
+    sandbox_results = await _detonate_case(case, offline, on_result=_emit_shot)
+    if sandbox_results is _ABORTED:
+        return
 
     if not await send("ai_started", data={"enabled": ai_enabled}):
         return

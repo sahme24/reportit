@@ -343,6 +343,21 @@
       <div class="chain-row" id="chain"></div>
     </div>
 
+    <!-- What the links actually opened. Kept with the results, not just in
+         the transient progress panel: the screenshot is the evidence. -->
+    <div class="panel" id="sandboxPanel" style="margin-bottom:20px;display:none;">
+      <div class="panel-head">
+        <span class="panel-title">Where the links went</span>
+        <span class="chip" id="sandboxCount" style="background:var(--primary-wash);color:var(--primary);"></span>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:13px;color:var(--faint);margin:0 0 14px;line-height:1.6;">
+          Each link was opened on our server in a throwaway browser, never in yours.
+        </p>
+        <div class="shots" id="sandboxShots"></div>
+      </div>
+    </div>
+
     <div class="panel" id="advicePanel" style="margin-bottom:20px;">
       <div class="panel-head"><span class="panel-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="12" r="9.2"/><path d="M8 12.3 L10.6 15 L16 9.3"/></svg>What You Should Do</span></div>
       <div class="panel-body"><ol class="advice" id="adviceList"></ol></div>
@@ -607,15 +622,22 @@ function setStep(name, state, note){
   if (note !== undefined) el.querySelector(".step-note").textContent = note;
 }
 
+/* Detonation results for this scan. Held here because the screenshots arrive
+   as separate stream events and are deliberately not stored on the case. */
+let sandboxCards = [];
+
 function resetProgress(){
   ["parse", "urls", "rep", "sandbox", "ai"].forEach(s => setStep(s, null, ""));
   $("shotList").innerHTML = "";
+  $("sandboxShots").innerHTML = "";
+  $("sandboxPanel").style.display = "none";
+  sandboxCards = [];
   $("progressElapsed").textContent = "0.0s";
 }
 
 /* One card per detonated link: the screenshot, where it actually landed,
    and why it scored the way it did. */
-function addShot(d){
+function buildShot(d){
   const sev = d.threat_level === "malicious" ? "bad"
             : d.threat_level === "suspicious" ? "warn" : "";
   const card = document.createElement("div");
@@ -643,7 +665,29 @@ function addShot(d){
       ${d.title ? `<div class="shot-title">${esc(d.title)}</div>` : ""}
       ${signals.length ? `<div class="shot-sig" style="color:${sigColor};">${esc(signals[0])}${signals.length > 1 ? ` (+${signals.length - 1} more)` : ""}</div>` : ""}
     </div>`;
-  $("shotList").appendChild(card);
+  return card;
+}
+
+/* Record a detonated link and show it live. It's re-rendered into the results
+   panel afterwards so the evidence survives the progress panel being hidden. */
+function addShot(d){
+  sandboxCards.push(d);
+  $("shotList").appendChild(buildShot(d));
+}
+
+function renderSandboxPanel(){
+  const host = $("sandboxShots");
+  host.innerHTML = "";
+  if (!sandboxCards.length) {
+    $("sandboxPanel").style.display = "none";
+    return;
+  }
+  sandboxCards.forEach(d => host.appendChild(buildShot(d)));
+  const flagged = sandboxCards.filter(d => d.threat_level && d.threat_level !== "none").length;
+  $("sandboxCount").textContent = flagged
+    ? `${flagged} OF ${sandboxCards.length} FLAGGED`
+    : `${sandboxCards.length} OPENED · NONE FLAGGED`;
+  $("sandboxPanel").style.display = "";
 }
 
 /* Runs one scan to completion. Resolves with the finished case, rejects with
@@ -651,12 +695,22 @@ function addShot(d){
    caller's finally block always re-enables the button. */
 function runScan(payload){
   return new Promise((resolve, reject) => {
+    // Marks a failure as "this transport doesn't work here" rather than "the
+    // scan failed", which is what tells the caller to retry over plain HTTP.
+    // Declared before the constructor because a blocked upgrade can throw
+    // synchronously as well as failing asynchronously.
+    const transportError = () => {
+      const err = new Error("Live progress isn't available here.");
+      err.transport = true;
+      return err;
+    };
+
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     let ws;
     try {
       ws = new WebSocket(`${proto}//${location.host}/ws/scan`);
     } catch (e) {
-      reject(new Error("Couldn't open a connection to the scanner."));
+      reject(transportError());
       return;
     }
 
@@ -752,12 +806,6 @@ function runScan(payload){
     // A socket that dies without ever delivering a message means the
     // transport is unavailable (proxy or CDN that won't forward an upgrade),
     // not that the scan failed -- the caller retries over plain HTTP.
-    const transportError = () => {
-      const err = new Error("Live progress isn't available here.");
-      err.transport = true;
-      return err;
-    };
-
     ws.onerror = () => finish(reject, transportError());
 
     ws.onclose = (e) => {
@@ -786,8 +834,23 @@ async function runScanOverHttp(payload){
   if (!r.ok)
     throw new Error((data.detail && data.detail.message)
                     || data.detail || r.statusText);
+
   ["parse", "urls", "rep", "ai"].forEach(s => setStep(s, "done"));
-  setStep("sandbox", "skip", "needs live connection");
+  // Links are still detonated on this path -- only the per-link progress is
+  // missing, so the results arrive in one go at the end.
+  const shots = data.sandbox_screenshots || [];
+  if (data.sandbox && data.sandbox.length) {
+    setStep("sandbox", "done", `${data.sandbox.length} opened`);
+    const byHost = Object.fromEntries(shots.map(s => [s.landed_on, s.screenshot]));
+    data.sandbox.forEach(s => addShot({
+      url: s.url, domain: s.landed_on, landed_on: s.landed_on,
+      title: s.title, threat_level: s.threat_level,
+      threat_signals: s.threat_signals, observations: s.observations,
+      error: s.error, screenshot: byHost[s.landed_on] || null,
+    }));
+  } else {
+    setStep("sandbox", "skip", "no links opened");
+  }
   return data;
 }
 
@@ -949,6 +1012,8 @@ function render(c){
       ? `<div class="connector ${sev === "bad" ? "solid" : ""}"></div>` : "";
     return node + connector;
   }).join("");
+
+  renderSandboxPanel();
 }
 
 /* "You're out of free scans, more at 3:45 PM" (user's local time). */

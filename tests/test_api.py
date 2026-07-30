@@ -355,6 +355,48 @@ def test_ws_scan_detonation_findings_change_the_verdict(monkeypatch):
     assert all("screenshot" not in entry for entry in case["sandbox"])
 
 
+def test_post_scan_also_detonates_links(monkeypatch):
+    """Firebase Hosting doesn't forward websocket upgrades, so for anyone on
+    the public domain the POST endpoint is the only path that runs. Gating
+    detonation on the transport would make the sandbox unreachable for real
+    users, so /api/scan has to detonate too."""
+    monkeypatch.setattr(app_module.sandbox, "is_available", lambda: True)
+    monkeypatch.setattr(app_module.sandbox, "browser_session", _fake_browser)
+
+    async def _fake(url, timeout_ms=0, browser=None):
+        return {"url": url, "landed_on": "evil.example", "title": "Sign in",
+                "threat_level": "malicious", "error": "",
+                "screenshot": "Zm9v", "observations": ["collects password"],
+                "threat_signals": ["asks for credentials on a domain the link "
+                                   "didn't claim to go to"]}
+    monkeypatch.setattr(app_module.sandbox, "detonate", _fake)
+
+    c = _signed_in_client()
+    raw = (app_module.SAMPLES / "clean-notification.eml").read_text(encoding="utf-8")
+    case = c.post("/api/scan", json={"raw": raw, "offline": False}).json()
+
+    assert any(f["category"] == "sandbox" for f in case["findings"])
+    assert case["verdict"] in ("SUSPICIOUS", "MALICIOUS")
+    assert case["sandbox"] and "screenshot" not in case["sandbox"][0]
+    # Screenshots ride alongside for display rather than inside the case.
+    assert case["sandbox_screenshots"][0]["screenshot"] == "Zm9v"
+
+
+def test_post_scan_offline_never_opens_links(monkeypatch):
+    monkeypatch.setattr(app_module.sandbox, "is_available", lambda: True)
+    monkeypatch.setattr(app_module.sandbox, "browser_session", _fake_browser)
+
+    async def _boom(*a, **kw):
+        raise AssertionError("offline scan attempted to open a link")
+    monkeypatch.setattr(app_module.sandbox, "detonate", _boom)
+
+    c = _signed_in_client()
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+    r = c.post("/api/scan", json={"raw": raw, "offline": True})
+    assert r.status_code == 200
+    assert "sandbox" not in r.json()
+
+
 def test_ws_scan_rejects_oversized_input():
     c = _signed_in_client()
     with c.websocket_connect("/ws/scan") as ws:
