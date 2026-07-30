@@ -11,6 +11,7 @@ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -18,19 +19,18 @@ from urllib.parse import urlencode, urlparse
 
 import anthropic
 import requests as http
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import (Cookie, Depends, FastAPI, HTTPException, Request,
+                     Response, WebSocket, WebSocketDisconnect)
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import json
-import asyncio
 
 from threadline import ai, db, sandbox
 from threadline.advice import advice_for
 from threadline.models import OK, WARN, Finding
 from threadline.report import markdown_report
 from threadline.reputation import load_dotenv
-from threadline.scanner import scan
+from threadline.scanner import _SEV_ORDER, _verdict, scan
 from threadline.sms import scan_sms
 
 load_dotenv()
@@ -77,7 +77,10 @@ async def canonicalize_host(request: Request, call_next):
 _CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src https://fonts.gstatic.com; img-src 'self' data:; "
-        "connect-src 'self'; object-src 'none'; base-uri 'self'; "
+        # ws:/wss: spelled out: 'self' is supposed to cover same-origin
+        # WebSockets under CSP3, but enough shipping browsers disagree that
+        # the streaming scanner silently fails to connect without this.
+        "connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; "
         "form-action 'self'; frame-ancestors 'none'")
 
 
@@ -279,6 +282,15 @@ def _ai_opinion(case_dict: dict) -> dict | None:
 # hard stop against someone feeding the parser/OCR multi-hundred-MB blobs.
 _MAX_RAW_CHARS = 1_500_000
 
+# Sandbox detonation limits. A newsletter can carry 40 links and each one is a
+# real browser page load, so cap the count, run a few at a time, and give any
+# single page a hard deadline.
+_SANDBOX_MAX_URLS = int(os.environ.get("REPORTIT_SANDBOX_MAX_URLS", "5"))
+_SANDBOX_CONCURRENCY = int(os.environ.get("REPORTIT_SANDBOX_CONCURRENCY", "3"))
+_SANDBOX_TIMEOUT_MS = int(os.environ.get("REPORTIT_SANDBOX_TIMEOUT_MS", "20000"))
+# Base64 chars, ~= 400 KB of JPEG. Bigger screenshots are dropped, not cut.
+_SANDBOX_MAX_SHOT_B64 = 550_000
+
 
 @app.post("/api/scan")
 def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
@@ -314,6 +326,15 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
     else:
         case = scan(req.raw, offline=req.offline, enrich=_email_enrichment)
 
+    return _finalize_case(case, user, ai_enabled, used)
+
+
+def _finalize_case(case, user: dict, ai_enabled: bool, used: int) -> dict:
+    """AI pass, report, quota accounting, persistence -> the response dict.
+
+    Shared by the POST endpoint and the WebSocket one so the two can't drift
+    into producing different results for the same message.
+    """
     opinion = None
     if ai_enabled:
         db.record_ai_use(user["id"])
@@ -339,157 +360,177 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
 
 
 @app.websocket("/ws/scan")
-async def ws_scan(websocket: WebSocket, session_cookie: str = Cookie(default="", alias=_COOKIE)):
-    """WebSocket endpoint for streaming scan progress and results."""
+async def ws_scan(websocket: WebSocket,
+                  session_cookie: str = Cookie(default="", alias=_COOKIE)):
+    """Streaming version of /api/scan.
+
+    Same inputs, same final result -- the difference is that the stages
+    report as they finish instead of the caller waiting on one long POST,
+    and that links get detonated in a sandbox when Playwright is installed.
+    """
     user = db.user_for_session(session_cookie)
     if not user:
-        await websocket.close(code=4001, reason="Unauthorized")
+        # Policy violation close code; the browser sees it as a clean close.
+        await websocket.close(code=1008)
         return
-
     await websocket.accept()
-    sandbox_tasks = []
+
+    async def send(kind: str, **payload) -> bool:
+        """Send one event. False once the socket is gone, so callers stop."""
+        try:
+            await websocket.send_json({"type": kind, **payload})
+            return True
+        except (WebSocketDisconnect, RuntimeError):
+            return False
 
     try:
-        # Receive scan request
-        data = await websocket.receive_json()
-        raw = data.get("raw", "")
-        offline = data.get("offline", False)
-        kind = data.get("kind", "email")
-        sender = data.get("sender", "")
+        req = await websocket.receive_json()
+    except (WebSocketDisconnect, ValueError):
+        return
 
-        if not raw.strip():
-            await websocket.send_json({"type": "error", "message": "Paste a message first."})
+    raw = (req.get("raw") or "")
+    kind = req.get("kind") or "email"
+    offline = bool(req.get("offline"))
+    sender = req.get("sender") or ""
+
+    if not raw.strip():
+        await send("error", message="Paste a message first.")
+        await websocket.close()
+        return
+    if len(raw) > _MAX_RAW_CHARS:
+        await send("error",
+                   message="That message is too large to scan (1.5 MB limit). "
+                           "Paste the headers plus the visible body, not an "
+                           "entire mailbox export.")
+        await websocket.close()
+        return
+
+    ai_enabled = ai.is_configured() and not offline
+    used = 0
+    if ai_enabled:
+        used, refresh_at = db.ai_usage(user["id"])
+        if used >= _AI_DAILY_LIMIT:
+            await send("error",
+                       message=f"You've used your {_AI_DAILY_LIMIT} free scans "
+                               "for today. Each one frees up 24 hours after it "
+                               "ran.",
+                       refresh_at=refresh_at)
             await websocket.close()
             return
 
-        if len(raw) > _MAX_RAW_CHARS:
-            await websocket.send_json({
-                "type": "error",
-                "message": f"Message too large (1.5 MB limit)."
-            })
-            await websocket.close()
-            return
+    loop = asyncio.get_running_loop()
+    events: asyncio.Queue = asyncio.Queue()
 
-        # Check AI quota
-        ai_enabled = ai.is_configured() and not offline
-        used = 0
-        if ai_enabled:
-            used, refresh_at = db.ai_usage(user["id"])
-            if used >= _AI_DAILY_LIMIT:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Daily scan limit reached.",
-                    "refresh_at": refresh_at,
-                })
-                await websocket.close()
+    def on_progress(step: str, data: dict) -> None:
+        """Called from the scan worker THREAD, so hand off thread-safely
+        rather than touching the socket or the loop directly."""
+        loop.call_soon_threadsafe(events.put_nowait, (step, data))
+
+    async def pump() -> None:
+        while True:
+            item = await events.get()
+            if item is None:
+                return
+            step, data = item
+            if not await send(step, data=data):
                 return
 
-        # Progress callback that sends events via WebSocket
-        async def on_progress(step: str, data: dict):
-            try:
-                await websocket.send_json({"type": step, "data": data})
-            except Exception as e:
-                # Connection closed or send failed
-                pass
-
-        # Run the scan with progress updates
+    pump_task = asyncio.create_task(pump())
+    try:
+        # scan()/scan_sms() are synchronous and do blocking network I/O. Run
+        # them off the event loop or every other request on this worker --
+        # including other people's scans -- stalls until this one finishes.
         if kind == "sms":
-            case = scan_sms(raw, sender=sender, offline=offline,
-                          enrich=_sms_enrichment, on_progress=on_progress)
+            case = await asyncio.to_thread(
+                scan_sms, raw, sender=sender, offline=offline,
+                enrich=_sms_enrichment, on_progress=on_progress)
         else:
-            case = scan(raw, offline=offline, enrich=_email_enrichment,
-                       on_progress=on_progress)
-
-        # Run sandbox analysis on URLs (if available and not offline)
-        if sandbox.is_available() and not offline and case.urls:
-            await websocket.send_json({
-                "type": "sandbox_starting",
-                "data": {"url_count": len(case.urls)},
-            })
-
-            # Analyze URLs in parallel (max 5 at a time)
-            semaphore = asyncio.Semaphore(5)
-            sandbox_findings = []
-
-            async def analyze_url_sandboxed(url_info):
-                async with semaphore:
-                    try:
-                        result = await sandbox.sandbox_analyze_url(url_info.url)
-
-                        # Send result immediately
-                        await websocket.send_json({
-                            "type": "sandbox_url_result",
-                            "data": {
-                                "url": url_info.defanged,
-                                "domain": url_info.domain,
-                                "threat_level": result.get("threat_level", "none"),
-                                "threat_signals": result.get("threat_signals", []),
-                                "screenshot": result.get("screenshot", None)[:50000] if result.get("screenshot") else None,  # Limit size
-                            },
-                        })
-
-                        # Create finding if threats detected
-                        finding = sandbox.sandbox_finding(result, url_info.url)
-                        if finding:
-                            sandbox_findings.append(finding)
-
-                    except Exception as e:
-                        logger.warning(f"Sandbox analysis failed for {url_info.url}: {e}")
-
-            # Run all analyses in parallel
-            await asyncio.gather(
-                *[analyze_url_sandboxed(u) for u in case.urls],
-                return_exceptions=True
-            )
-
-            # Add sandbox findings to case
-            case.findings += sandbox_findings
-
-        # AI analysis (if enabled)
-        opinion = None
-        if ai_enabled:
-            db.record_ai_use(user["id"])
-            opinion = _ai_opinion(case.to_dict())
-            if opinion:
-                case.verdict = opinion["verdict"]
-                case.confidence = opinion["confidence"]
-                case.recommendations = advice_for(case.kind, case.verdict, case.findings)
-
-        # Build final result
-        result = case.to_dict()
-        result["report_markdown"] = markdown_report(
-            case, reporter=user, ai_summary=opinion["summary"] if opinion else None)
-        if opinion:
-            result["ai_opinion"] = {"summary": opinion["summary"],
-                                    "actions": opinion["actions"]}
-            result["uses_left"] = max(_AI_DAILY_LIMIT - used - 1, 0)
-
-        # Record scan in database
-        db.record_scan(user["id"], result)
-
-        # Send final result
-        await websocket.send_json({
-            "type": "scan_complete",
-            "data": result,
-        })
-
-    except WebSocketDisconnect:
-        # Client disconnected
-        pass
+            case = await asyncio.to_thread(
+                scan, raw, offline=offline, enrich=_email_enrichment,
+                on_progress=on_progress)
     except Exception as e:
-        logger.error(f"WebSocket scan error: {e}")
-        try:
-            await websocket.send_json({
-                "type": "error",
-                "message": f"Scan failed: {str(e)[:200]}",
-            })
-        except:
-            pass
+        logger.exception("scan failed")
+        events.put_nowait(None)
+        await pump_task
+        await send("error", message=f"Scan failed: {type(e).__name__}")
+        await websocket.close()
+        return
     finally:
-        # Cleanup
-        for task in sandbox_tasks:
-            if not task.done():
-                task.cancel()
+        if not pump_task.done():
+            events.put_nowait(None)
+            await pump_task
+
+    # --- sandbox detonation ------------------------------------------------
+    # Opening attacker-controlled links is deliberately opt-in-by-deployment:
+    # it reveals this server's IP to the sender and confirms the message was
+    # opened, so it only runs when Playwright is installed and the user
+    # didn't ask for an offline scan.
+    sandbox_results: list[dict] = []
+    if sandbox.is_available() and not offline and case.urls:
+        targets = case.urls[:_SANDBOX_MAX_URLS]
+        if not await send("sandbox_starting", data={"url_count": len(targets)}):
+            return
+        limiter = asyncio.Semaphore(_SANDBOX_CONCURRENCY)
+
+        async def run_one(url_info):
+            async with limiter:
+                return url_info, await sandbox.detonate(
+                    url_info.url, timeout_ms=_SANDBOX_TIMEOUT_MS)
+
+        for coro in asyncio.as_completed([run_one(u) for u in targets]):
+            try:
+                url_info, res = await coro
+            except Exception as e:
+                logger.warning("detonation task failed: %s", e)
+                continue
+            sandbox_results.append(res)
+            finding = sandbox.sandbox_finding(res, url_info.defanged)
+            if finding:
+                case.findings.append(finding)
+            # A JPEG screenshot is ~40-150 KB of base64. Send it when it's
+            # reasonable and drop it when it isn't -- never truncate, since a
+            # sliced base64 string decodes to a broken image.
+            shot = res.get("screenshot")
+            if shot and len(shot) > _SANDBOX_MAX_SHOT_B64:
+                shot = None
+            if not await send("sandbox_url_result", data={
+                    "url": url_info.defanged,
+                    "domain": url_info.domain,
+                    "landed_on": res.get("landed_on", ""),
+                    "title": res.get("title", ""),
+                    "threat_level": res.get("threat_level", "none"),
+                    "threat_signals": res.get("threat_signals", []),
+                    "observations": res.get("observations", []),
+                    "error": res.get("error", ""),
+                    "screenshot": shot}):
+                return
+
+        # Findings changed, so the score and verdict have to be recomputed
+        # rather than left at whatever the pre-sandbox pass decided.
+        case.findings.sort(key=lambda f: _SEV_ORDER.get(f.severity, 9))
+        case.score = min(sum(f.weight for f in case.findings), 100)
+        case.verdict, case.confidence = _verdict(case.score)
+        case.recommendations = advice_for(case.kind, case.verdict, case.findings)
+
+    if not await send("ai_started", data={"enabled": ai_enabled}):
+        return
+
+    try:
+        result = await asyncio.to_thread(
+            _finalize_case, case, user, ai_enabled, used)
+    except Exception as e:
+        logger.exception("finalize failed")
+        await send("error", message=f"Scan failed: {type(e).__name__}")
+        await websocket.close()
+        return
+
+    if sandbox_results:
+        result["sandbox"] = [
+            {k: v for k, v in r.items() if k != "screenshot"}
+            for r in sandbox_results]
+
+    await send("scan_complete", data=result)
+    await websocket.close()
 
 
 @app.get("/api/history")
