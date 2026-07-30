@@ -398,25 +398,25 @@
 
 <!-- Real use cases -->
 <section class="usage-section" id="usage">
-  <h2>Used by people who get a lot of suspicious emails.</h2>
+  <h2>Built for the moment you're not sure.</h2>
 
   <div class="usage-examples">
     <div class="usage-example">
-      <div class="scenario">Finance team</div>
+      <div class="scenario">"Is this really my bank?"</div>
       <div class="result">
-        Vets invoices from partners and vendors. No more "did this really come from our supplier?" questions. Keeps the exports for audit trails.
+        The logo is right, the wording is close, the link looks almost correct. Paste it in and find out which of those three is lying.
       </div>
     </div>
     <div class="usage-example">
-      <div class="scenario">Support teams</div>
+      <div class="scenario">"My mum forwarded me this."</div>
       <div class="result">
-        Customers forward suspicious emails constantly. Give them a link, they get a report, they forward the proof to their bank. Problem solved.
+        You're the family's tech support. Run it, export the report, and send back something more convincing than "looks fake to me."
       </div>
     </div>
     <div class="usage-example">
-      <div class="scenario">Individuals</div>
+      <div class="scenario">"An invoice arrived from a supplier."</div>
       <div class="result">
-        Got a weird email claiming to be from your bank? Run it through the scanner, get a verdict, and know if you should care. No guessing.
+        Same sender name, new bank details. Header authentication and domain age answer that faster than a phone call does.
       </div>
     </div>
   </div>
@@ -430,12 +430,12 @@
 
   <div>
     <p class="description">
-      We analyze the message, store only the verdict and metadata, and discard the body. No emails are kept on our servers. Sign-in is Google-only (we never see your password).
+      We analyse the message, store only the verdict and metadata, and discard the body. No emails are kept on our servers. Sign-in is Google-only (we never see your password).
     </p>
     <ul class="list" style="margin-top: 24px;">
-      <li><strong>Message bodies:</strong> Analyzed and discarded immediately.</li>
+      <li><strong>Message bodies:</strong> Analysed and discarded immediately.</li>
       <li><strong>Case history:</strong> Verdict, sender, subject, risk score only.</li>
-      <li><strong>Links:</strong> Never visited. URLs are defanged in reports.</li>
+      <li><strong>Links:</strong> Opened only on our server, in a throwaway browser, never in yours. URLs stay defanged everywhere they're displayed. Offline mode skips this entirely.</li>
       <li><strong>Passwords:</strong> We don't handle them.</li>
     </ul>
   </div>
@@ -469,9 +469,16 @@
   </div>
 
   <div class="faq-item">
+    <div class="faq-q">Do you actually open the links?</div>
+    <div class="faq-a">
+      Yes — in a throwaway headless browser on our server, never in your browser. You get a screenshot of the page, where the link really ended up, and whether it's asking for a password. That's the part you'd otherwise have to risk clicking to find out. Tick "offline" if you'd rather we didn't: opening a link tells the sender their message was read.
+    </div>
+  </div>
+
+  <div class="faq-item">
     <div class="faq-q">What doesn't it do?</div>
     <div class="faq-a">
-      We don't visit links (so we don't see the actual landing page). We don't open attachments. We don't run behavioral sandboxes. For those, use a tool like Any.run or Joe Sandbox.
+      We don't open attachments or run them. We don't do full behavioural malware analysis — for that, use Any.run or Joe Sandbox. And a clean verdict isn't a guarantee; it means nothing we check for showed up.
     </div>
   </div>
 
@@ -490,11 +497,27 @@
   <a href="/login?mode=signup" class="btn primary" style="font-size: 15px; padding: 12px 28px;">Get started →</a>
 </div>
 
+<footer class="footer">
+  <div class="wrap footer-row">
+    <span>ReportIT.ai. Phishing and smishing investigation for everyone.
+      Built by <a href="https://www.linkedin.com/in/salmanahmed18" target="_blank" rel="noopener">Salman Ahmed</a>.</span>
+    <span>
+      <a href="/#how">How it works</a> ·
+      <a href="/#trust">Privacy</a> ·
+      <a href="/#faq">FAQ</a> ·
+      <a href="/login">Sign in</a>
+    </span>
+  </div>
+  <div class="wrap footer-copyright">&copy; <span id="footerYear"></span> ReportIT.ai. All rights reserved.</div>
+</footer>
+
 <script src="/static/shared.js"></script>
 <script>
-ReportIT.topbar("/").then(user => {
-  if (user) location.href = "/dashboard";
-});
+// No redirect for signed-in visitors: the logo in the navbar points here, so
+// bouncing them to /dashboard makes the landing page unreachable once you
+// have a session.
+ReportIT.topbar("/");
+document.getElementById("footerYear").textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
