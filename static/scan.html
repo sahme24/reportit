@@ -17,10 +17,14 @@
   .intake-row{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap;}
   .intake-hint{font-size:13px;color:var(--faint);margin-right:auto;}
 
-  .grid{display:grid;grid-template-columns:1fr 1.15fr;gap:20px;margin-bottom:20px;}
-  @media (max-width:760px){.grid{grid-template-columns:1fr;}}
+  .grid{display:flex;flex-direction:column;gap:20px;margin-bottom:20px;}
+  @media (max-width:760px){.grid{flex-direction:column;}}
 
-  .src-line{font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.9;color:var(--dim);white-space:pre-wrap;word-break:break-all;}
+  /* overflow-wrap:anywhere, not word-break:break-all -- break-all splits
+     ordinary words mid-letter ("Vir tual Eve nts"), which made headers
+     unreadable. This wraps at spaces normally and only breaks inside a
+     token when it's a long unbroken URL that would otherwise overflow. */
+  .src-line{font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.9;color:var(--dim);white-space:pre-wrap;overflow-wrap:anywhere;}
   .src-line b{color:var(--ink);font-weight:500;}
   .src-flag{color:var(--red);}
   .src-ok{color:var(--teal);}
@@ -248,70 +252,74 @@
     </div>
   </div>
 
-  <!-- progress panel -->
-  <div id="progressPanel" class="panel lift" style="margin-bottom:20px;display:none;background:var(--primary-wash);border-color:var(--primary);">
-    <div class="panel-body" style="padding:14px 18px;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite;">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M12 6 V2"></path>
-        </svg>
-        <span style="font-size:14px;font-weight:600;color:var(--ink);">Scanning…</span>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <!-- Step: Parsing -->
-        <div class="progress-step" id="step-parsing">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="step-icon">○</span>
-            <span class="step-name">Parsing email</span>
-            <span class="step-status"></span>
-          </div>
-        </div>
-
-        <!-- Step: URLs -->
-        <div class="progress-step" id="step-urls" style="opacity:0.5;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="step-icon">○</span>
-            <span class="step-name">Extracting links</span>
-            <span class="step-status"></span>
-          </div>
-          <div class="step-details"></div>
-        </div>
-
-        <!-- Step: Reputation -->
-        <div class="progress-step" id="step-reputation" style="opacity:0.5;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="step-icon">○</span>
-            <span class="step-name">Checking reputation</span>
-            <span class="step-status"></span>
-          </div>
-        </div>
-
-        <!-- Step: Sandbox -->
-        <div class="progress-step" id="step-sandbox" style="opacity:0.5;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="step-icon">○</span>
-            <span class="step-name">Sandbox analysis</span>
-            <span class="step-status"></span>
-          </div>
-          <div class="step-details"></div>
-        </div>
-      </div>
+  <!-- live progress, shown while a scan streams over the websocket -->
+  <div id="progressPanel" class="panel lift hidden" style="margin-bottom:20px;">
+    <div class="panel-head">
+      <span class="panel-title">Investigating</span>
+      <span class="chip" id="progressElapsed" style="background:var(--primary-wash);color:var(--primary);">0.0s</span>
+    </div>
+    <div class="panel-body">
+      <ol class="steps" id="stepList">
+        <li class="step" data-step="parse"><i></i><span class="step-name">Reading the message</span><span class="step-note"></span></li>
+        <li class="step" data-step="urls"><i></i><span class="step-name">Pulling out the links</span><span class="step-note"></span></li>
+        <li class="step" data-step="rep"><i></i><span class="step-name">Checking threat intelligence</span><span class="step-note"></span></li>
+        <li class="step" data-step="sandbox"><i></i><span class="step-name">Opening links in a sandbox</span><span class="step-note"></span></li>
+        <li class="step" data-step="ai"><i></i><span class="step-name">Writing the verdict</span><span class="step-note"></span></li>
+      </ol>
+      <div id="shotList" class="shots"></div>
     </div>
   </div>
 
   <style>
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .progress-step { margin:6px 0;font-size:13px;color:var(--dim);line-height:1.5; }
-    .progress-step .step-icon { display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:2px solid var(--line-strong);color:var(--dim);font-size:10px;font-weight:600; }
-    .progress-step.active .step-icon { border-color:var(--primary);color:var(--primary);background:var(--primary-wash);animation:spin 1s linear infinite; }
-    .progress-step.done .step-icon { border-color:var(--teal);color:#fff;background:var(--teal);content:"✓"; }
-    .progress-step.done::before { content:"✓"; }
-    .progress-step.error .step-icon { border-color:var(--red);color:#fff;background:var(--red); }
-    .step-name { font-weight:600;color:var(--ink);flex:1; }
-    .step-status { font-size:12px;color:var(--faint); }
-    .step-details { margin-left:28px;margin-top:6px;font-size:12px;color:var(--faint); }
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .steps{list-style:none;margin:0;padding:0;}
+    .step{
+      display:flex;align-items:center;gap:11px;padding:9px 0;
+      font-size:13.5px;color:var(--faint);
+      border-bottom:1px solid var(--line);opacity:0.45;
+      transition:opacity .2s var(--ease), color .2s var(--ease);
+    }
+    .step:last-child{border-bottom:none;}
+    .step > i{
+      width:16px;height:16px;border-radius:50%;flex-shrink:0;
+      border:2px solid var(--line-strong);
+    }
+    .step.run,.step.done,.step.skip,.step.fail{opacity:1;}
+    .step.run{color:var(--ink);}
+    .step.run > i{
+      border-color:var(--primary);border-top-color:transparent;
+      animation:spin .7s linear infinite;
+    }
+    .step.done{color:var(--ink);}
+    .step.done > i{border-color:var(--teal);background:var(--teal);}
+    .step.skip > i{border-style:dashed;}
+    .step.fail > i{border-color:var(--red);background:var(--red);}
+    .step-name{flex:1;font-weight:500;}
+    .step-note{
+      font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--faint);
+      text-align:right;
+    }
+
+    /* sandbox screenshots: what the link actually opens, without you opening it */
+    .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+    .shots:not(:empty){margin-top:18px;}
+    .shot{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg-soft);}
+    .shot-frame{
+      height:150px;background:var(--bg-soft);position:relative;
+      display:flex;align-items:center;justify-content:center;
+      font-size:11.5px;color:var(--faint);text-align:center;padding:10px;
+    }
+    .shot-frame img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;}
+    .shot-meta{padding:9px 11px;border-top:1px solid var(--line);}
+    .shot-host{
+      font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .shot-title{font-size:11.5px;color:var(--faint);margin-top:2px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .shot-sig{font-size:11.5px;line-height:1.5;margin-top:6px;color:var(--dim);}
+    .shot.bad{border-color:var(--red);}
+    .shot.warn{border-color:var(--amber);}
   </style>
 
   <!-- results -->
@@ -582,138 +590,253 @@ $("loadSmish").onclick = async () => {
 };
 setKind("email");
 
-$("analyze").onclick = async () => {
-  const raw = $("rawInput").value;
-  if (!raw.trim()) { $("error").textContent = "Paste a raw email first."; return; }
-  const btn = $("analyze");
-  btn.disabled = true;
+/* ---------------------------------------------------------------- scanning
+   The scan streams over a websocket so each stage reports as it finishes.
+   Stage state lives here; render() still owns the finished case. */
 
-  // Determine WS protocol from current location
-  const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUrl = `${wsProto}//${location.host}/ws/scan`;
+const STEP_LABEL = {parse: "parse", urls: "urls", rep: "rep",
+                    sandbox: "sandbox", ai: "ai"};
 
-  try {
-    // Show progress panel, hide intake/results
-    $("error").textContent = "";
-    $("intake").classList.add("hidden");
-    $("results").classList.add("hidden");
-    $("progressPanel").style.display = "";
+function stepEl(name){ return document.querySelector(`.step[data-step="${name}"]`); }
 
-    // Reset progress steps
-    ["parsing", "urls", "reputation", "sandbox"].forEach(step => {
-      const el = $(`step-${step}`);
-      el.classList.remove("active", "done", "error");
-      el.style.opacity = step === "parsing" ? "1" : "0.5";
-      el.querySelector(".step-status").textContent = "";
-      const details = el.querySelector(".step-details");
-      if (details) details.innerHTML = "";
-    });
-    $("step-parsing").classList.add("active");
+function setStep(name, state, note){
+  const el = stepEl(name);
+  if (!el) return;
+  el.classList.remove("run", "done", "skip", "fail");
+  if (state) el.classList.add(state);
+  if (note !== undefined) el.querySelector(".step-note").textContent = note;
+}
 
-    const ws = new WebSocket(wsUrl);
-    let messageCount = 0;
+function resetProgress(){
+  ["parse", "urls", "rep", "sandbox", "ai"].forEach(s => setStep(s, null, ""));
+  $("shotList").innerHTML = "";
+  $("progressElapsed").textContent = "0.0s";
+}
+
+/* One card per detonated link: the screenshot, where it actually landed,
+   and why it scored the way it did. */
+function addShot(d){
+  const sev = d.threat_level === "malicious" ? "bad"
+            : d.threat_level === "suspicious" ? "warn" : "";
+  const card = document.createElement("div");
+  card.className = "shot" + (sev ? " " + sev : "");
+
+  let frame;
+  if (d.screenshot) {
+    frame = `<img src="data:image/jpeg;base64,${d.screenshot}" alt="Sandbox screenshot of ${esc(d.landed_on || d.domain)}" loading="lazy">`;
+  } else if (d.error === "timeout") {
+    frame = "page never finished loading";
+  } else if (d.error) {
+    frame = "couldn't be opened";
+  } else {
+    frame = "no screenshot";
+  }
+
+  const signals = (d.threat_signals || []).length ? d.threat_signals
+                : (d.observations || []);
+  const sigColor = sev === "bad" ? "var(--red)" : sev === "warn" ? "var(--amber)" : "var(--faint)";
+
+  card.innerHTML = `
+    <div class="shot-frame">${frame}</div>
+    <div class="shot-meta">
+      <div class="shot-host">${esc(d.landed_on || d.domain || d.url)}</div>
+      ${d.title ? `<div class="shot-title">${esc(d.title)}</div>` : ""}
+      ${signals.length ? `<div class="shot-sig" style="color:${sigColor};">${esc(signals[0])}${signals.length > 1 ? ` (+${signals.length - 1} more)` : ""}</div>` : ""}
+    </div>`;
+  $("shotList").appendChild(card);
+}
+
+/* Runs one scan to completion. Resolves with the finished case, rejects with
+   a human-readable message. Every exit path settles exactly once, so the
+   caller's finally block always re-enables the button. */
+function runScan(payload){
+  return new Promise((resolve, reject) => {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    let ws;
+    try {
+      ws = new WebSocket(`${proto}//${location.host}/ws/scan`);
+    } catch (e) {
+      reject(new Error("Couldn't open a connection to the scanner."));
+      return;
+    }
+
+    let settled = false, sawResult = false, sandboxSeen = 0;
+    const finish = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearInterval(ticker);
+      try { ws.close(); } catch {}
+      fn(arg);
+    };
+
+    const started = Date.now();
+    const ticker = setInterval(() => {
+      $("progressElapsed").textContent =
+        ((Date.now() - started) / 1000).toFixed(1) + "s";
+    }, 100);
+    const timer = setTimeout(
+      () => finish(reject, new Error("The scan took too long and was stopped.")),
+      300000);
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({
-        raw,
-        offline: $("offline").checked,
-        kind,
-        sender: $("smsSender").value,
-      }));
+      setStep("parse", "run");
+      ws.send(JSON.stringify(payload));
     };
 
-    ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-      messageCount++;
+    ws.onmessage = (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      const d = msg.data || {};
 
-      if (msg.type === "parse_started") {
-        $("step-parsing").classList.add("active");
-      }
+      switch (msg.type) {
+        case "parse_started":
+          setStep("parse", "run");
+          break;
 
-      if (msg.type === "urls_extracted") {
-        $("step-parsing").classList.remove("active");
-        $("step-parsing").classList.add("done");
-        $("step-urls").style.opacity = "1";
-        $("step-urls").classList.add("active");
-        const { count, urls } = msg.data;
-        $("step-urls").querySelector(".step-status").textContent = `${count} link(s)`;
-        const details = $("step-urls").querySelector(".step-details");
-        if (urls && urls.length) {
-          details.innerHTML = urls.slice(0, 3).map(u =>
-            `<div>${esc(u.domain || u.url)}</div>`
-          ).join("") + (urls.length > 3 ? `<div>…and ${urls.length - 3} more</div>` : "");
+        case "urls_extracted": {
+          setStep("parse", "done");
+          const n = d.count || 0;
+          setStep("urls", "done", n === 1 ? "1 link" : `${n} links`);
+          setStep("rep", "run");
+          if (!n) setStep("sandbox", "skip", "no links to open");
+          break;
         }
-      }
 
-      if (msg.type === "reputation_check_started") {
-        $("step-urls").classList.remove("active");
-        $("step-urls").classList.add("done");
-        $("step-reputation").style.opacity = "1";
-        $("step-reputation").classList.add("active");
-      }
+        case "reputation_check_started":
+          setStep("rep", "run", d.url_count ? `${d.url_count} to check` : "");
+          break;
 
-      if (msg.type === "reputation_check_completed") {
-        $("step-reputation").classList.remove("active");
-        $("step-reputation").classList.add("done");
-      }
+        case "reputation_check_completed":
+          setStep("rep", "done");
+          break;
 
-      if (msg.type === "sandbox_starting") {
-        $("step-sandbox").style.opacity = "1";
-        $("step-sandbox").classList.add("active");
-        const { url_count } = msg.data;
-        $("step-sandbox").querySelector(".step-status").textContent = `analyzing ${url_count} URL(s)`;
-      }
+        case "sandbox_starting":
+          setStep("sandbox", "run", `opening ${d.url_count}`);
+          break;
 
-      if (msg.type === "sandbox_url_result") {
-        const { url, domain, threat_level } = msg.data;
-        const details = $("step-sandbox").querySelector(".step-details");
-        const line = document.createElement("div");
-        const threatColor = threat_level === "none" ? "var(--teal)" : "var(--amber)";
-        line.innerHTML = `<span style="color:${threatColor};font-weight:600;">${esc(domain)}</span>`;
-        details.appendChild(line);
-      }
+        case "sandbox_url_result":
+          sandboxSeen++;
+          setStep("sandbox", "run", `${sandboxSeen} opened`);
+          addShot(d);
+          break;
 
-      if (msg.type === "scan_complete") {
-        currentCase = msg.data;
-        $("step-sandbox").classList.remove("active");
-        $("step-sandbox").classList.add("done");
-        $("progressPanel").style.display = "none";
-        render(currentCase);
-        if (typeof currentCase.uses_left === "number") {
-          $("preQuota").textContent = `${currentCase.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
-          $("preQuota").classList.remove("hidden");
-        }
-        ws.close();
-      }
+        case "ai_started":
+          // No sandbox events at all means the server has no browser
+          // installed, so say that instead of leaving the row spinning.
+          if (!stepEl("sandbox").classList.contains("done") &&
+              !stepEl("sandbox").classList.contains("skip")) {
+            setStep("sandbox", sandboxSeen ? "done" : "skip",
+                    sandboxSeen ? `${sandboxSeen} opened` : "not available");
+          }
+          setStep("rep", "done");
+          setStep("ai", d.enabled ? "run" : "skip",
+                  d.enabled ? "" : "AI not configured");
+          break;
 
-      if (msg.type === "error") {
-        throw new Error(msg.message || "Unknown error");
-      }
-    };
+        case "scan_complete":
+          sawResult = true;
+          setStep("ai", "done");
+          finish(resolve, d);
+          break;
 
-    ws.onerror = (e) => {
-      throw new Error("WebSocket connection failed");
-    };
-
-    ws.onclose = () => {
-      if (messageCount === 0) {
-        throw new Error("Connection failed");
+        case "error":
+          finish(reject, new Error(
+            d.refresh_at !== undefined || msg.refresh_at !== undefined
+              ? quotaMessage(msg.refresh_at ?? d.refresh_at)
+              : (msg.message || "The scan failed.")));
+          break;
       }
     };
 
-    // Timeout after 5 minutes
-    await new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Scan timeout")), 300000)
-    );
+    // A socket that dies without ever delivering a message means the
+    // transport is unavailable (proxy or CDN that won't forward an upgrade),
+    // not that the scan failed -- the caller retries over plain HTTP.
+    const transportError = () => {
+      const err = new Error("Live progress isn't available here.");
+      err.transport = true;
+      return err;
+    };
 
+    ws.onerror = () => finish(reject, transportError());
+
+    ws.onclose = (e) => {
+      if (sawResult) return;
+      // 1008 is the policy-violation code the server uses for "not signed in".
+      if (e.code === 1008) { location.href = "/login?next=/scan"; return; }
+      finish(reject, transportError());
+    };
+  });
+}
+
+/* Fallback for environments that won't carry a websocket (Firebase Hosting
+   rewrites and some corporate proxies drop the upgrade). Same scan, same
+   result -- the stages just can't report as they go. */
+async function runScanOverHttp(payload){
+  setStep("parse", "run", "live progress unavailable");
+  const r = await fetch("/api/scan", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload),
+  });
+  if (r.status === 401) { location.href = "/login?next=/scan"; return null; }
+  const data = await r.json();
+  if (r.status === 429 && data.detail && data.detail.refresh_at !== undefined)
+    throw new Error(quotaMessage(data.detail.refresh_at));
+  if (!r.ok)
+    throw new Error((data.detail && data.detail.message)
+                    || data.detail || r.statusText);
+  ["parse", "urls", "rep", "ai"].forEach(s => setStep(s, "done"));
+  setStep("sandbox", "skip", "needs live connection");
+  return data;
+}
+
+$("analyze").onclick = async () => {
+  const raw = $("rawInput").value;
+  if (!raw.trim()) {
+    $("error").textContent = kind === "sms"
+      ? "Paste the text message first." : "Paste a raw email first.";
+    return;
+  }
+  const btn = $("analyze");
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Investigating…";
+  $("error").textContent = "";
+  $("intake").classList.add("hidden");
+  $("results").classList.add("hidden");
+  resetProgress();
+  $("progressPanel").classList.remove("hidden");
+
+  const payload = {
+    raw,
+    offline: $("offline").checked,
+    kind,
+    sender: $("smsSender").value,
+  };
+
+  try {
+    try {
+      currentCase = await runScan(payload);
+    } catch (e) {
+      if (!e.transport) throw e;
+      currentCase = await runScanOverHttp(payload);
+      if (!currentCase) return;   // redirected to login
+    }
+    $("progressPanel").classList.add("hidden");
+    render(currentCase);
+    if (typeof currentCase.uses_left === "number") {
+      $("preQuota").textContent =
+        `${currentCase.uses_left} OF ${aiLimit} SCANS LEFT TODAY`;
+      $("preQuota").classList.remove("hidden");
+    }
   } catch (e) {
-    $("progressPanel").style.display = "none";
-    $("error").textContent = "Scan failed: " + e.message;
+    $("progressPanel").classList.add("hidden");
     $("intake").classList.remove("hidden");
-    $("results").classList.add("hidden");
+    $("error").textContent = e.message;
   } finally {
     btn.disabled = false;
-    btn.textContent = "Scan Email →";
+    btn.textContent = label;
   }
 };
 
