@@ -11,6 +11,14 @@ RUN apt-get update \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# `pip install playwright` only installs the Python bindings -- the browser
+# itself is a separate download, and without it every sandbox detonation fails
+# at launch. --with-deps pulls the shared libraries headless Chromium needs on
+# a slim image. This adds roughly 400 MB; drop both lines (and set
+# REPORTIT_SANDBOX=off) if you'd rather ship a small image without link
+# detonation.
+RUN playwright install --with-deps chromium
+
 COPY . .
 
 # The SQLite database lives here. For local docker run, mount a volume:
