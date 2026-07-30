@@ -471,39 +471,54 @@ async def ws_scan(websocket: WebSocket,
         if not await send("sandbox_starting", data={"url_count": len(targets)}):
             return
         limiter = asyncio.Semaphore(_SANDBOX_CONCURRENCY)
+        aborted = False
 
-        async def run_one(url_info):
-            async with limiter:
-                return url_info, await sandbox.detonate(
-                    url_info.url, timeout_ms=_SANDBOX_TIMEOUT_MS)
+        try:
+            # One browser for the batch, a context per link: launching a
+            # browser per URL is hundreds of MB each and OOMs the container.
+            async with sandbox.browser_session() as browser:
 
-        for coro in asyncio.as_completed([run_one(u) for u in targets]):
-            try:
-                url_info, res = await coro
-            except Exception as e:
-                logger.warning("detonation task failed: %s", e)
-                continue
-            sandbox_results.append(res)
-            finding = sandbox.sandbox_finding(res, url_info.defanged)
-            if finding:
-                case.findings.append(finding)
-            # A JPEG screenshot is ~40-150 KB of base64. Send it when it's
-            # reasonable and drop it when it isn't -- never truncate, since a
-            # sliced base64 string decodes to a broken image.
-            shot = res.get("screenshot")
-            if shot and len(shot) > _SANDBOX_MAX_SHOT_B64:
-                shot = None
-            if not await send("sandbox_url_result", data={
-                    "url": url_info.defanged,
-                    "domain": url_info.domain,
-                    "landed_on": res.get("landed_on", ""),
-                    "title": res.get("title", ""),
-                    "threat_level": res.get("threat_level", "none"),
-                    "threat_signals": res.get("threat_signals", []),
-                    "observations": res.get("observations", []),
-                    "error": res.get("error", ""),
-                    "screenshot": shot}):
-                return
+                async def run_one(url_info):
+                    async with limiter:
+                        return url_info, await sandbox.detonate(
+                            url_info.url, timeout_ms=_SANDBOX_TIMEOUT_MS,
+                            browser=browser)
+
+                for coro in asyncio.as_completed([run_one(u) for u in targets]):
+                    try:
+                        url_info, res = await coro
+                    except Exception as e:
+                        logger.warning("detonation task failed: %s", e)
+                        continue
+                    sandbox_results.append(res)
+                    finding = sandbox.sandbox_finding(res, url_info.defanged)
+                    if finding:
+                        case.findings.append(finding)
+                    # A JPEG screenshot is ~40-150 KB of base64. Send it when
+                    # it's reasonable and drop it when it isn't -- never
+                    # truncate: sliced base64 decodes to a broken image.
+                    shot = res.get("screenshot")
+                    if shot and len(shot) > _SANDBOX_MAX_SHOT_B64:
+                        shot = None
+                    if not await send("sandbox_url_result", data={
+                            "url": url_info.defanged,
+                            "domain": url_info.domain,
+                            "landed_on": res.get("landed_on", ""),
+                            "title": res.get("title", ""),
+                            "threat_level": res.get("threat_level", "none"),
+                            "threat_signals": res.get("threat_signals", []),
+                            "observations": res.get("observations", []),
+                            "error": res.get("error", ""),
+                            "screenshot": shot}):
+                        aborted = True
+                        break
+        except Exception as e:
+            # No browser on this host, or it died. The scan still has every
+            # non-sandbox finding, so finish it rather than failing outright.
+            logger.warning("sandbox stage unavailable: %s", e)
+
+        if aborted:
+            return
 
         # Findings changed, so the score and verdict have to be recomputed
         # rather than left at whatever the pre-sandbox pass decided.

@@ -112,14 +112,25 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 # what caused the "can't open file C:\c\Program Files..." error. Excluding
 # just the --add-volume flag by name avoids touching anything else.
 echo "==> Deploying to Cloud Run"
+# Memory/CPU are sized for headless Chromium, which the link sandbox runs.
+# Cloud Run's 512Mi default is not enough: the browser alone is a few hundred
+# MB and the container is OOM-killed mid-scan. --concurrency=4 keeps one
+# instance from being asked to run more simultaneous browsers than that
+# memory covers (each scan opens up to REPORTIT_SANDBOX_CONCURRENCY contexts).
+# To run without the sandbox, set REPORTIT_SANDBOX=off and 512Mi/1 CPU is
+# fine again.
 MSYS2_ARG_CONV_EXCL="--add-volume" gcloud run deploy reportit \
   --source . \
   --region "$REGION" \
   --allow-unauthenticated \
   --min-instances=0 \
   --max-instances=1 \
+  --memory=2Gi \
+  --cpu=2 \
+  --concurrency=4 \
+  --timeout=300 \
   --add-volume=mount-path=/data,type=cloud-storage,bucket="$BUCKET",readonly=false \
-  --set-env-vars="OAUTH_REDIRECT_URL=${PUBLIC_URL}/auth/google/callback" \
+  --set-env-vars="OAUTH_REDIRECT_URL=${PUBLIC_URL}/auth/google/callback,REPORTIT_SANDBOX_CONCURRENCY=2" \
   --set-secrets="$SECRETS"
 
 echo ""

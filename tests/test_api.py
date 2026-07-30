@@ -1,5 +1,6 @@
 """API smoke tests, run against a temp database, no network calls."""
 
+import contextlib
 import os
 import tempfile
 
@@ -224,6 +225,13 @@ def test_history_is_isolated_between_users():
 
 # ------------------------------------------------- streaming scan (websocket)
 
+@contextlib.asynccontextmanager
+async def _fake_browser():
+    """Stands in for a real Chromium so detonation paths can be exercised
+    on a machine with no browser installed."""
+    yield object()
+
+
 def _drain_ws(ws) -> list[dict]:
     """Collect every event up to and including the terminal one."""
     events = []
@@ -320,8 +328,9 @@ def test_ws_scan_detonation_findings_change_the_verdict(monkeypatch):
     """A sandbox hit has to actually move the case: its finding is added and
     the score/verdict recomputed, not left at the pre-sandbox value."""
     monkeypatch.setattr(app_module.sandbox, "is_available", lambda: True)
+    monkeypatch.setattr(app_module.sandbox, "browser_session", _fake_browser)
 
-    async def _fake(url, timeout_ms=0):
+    async def _fake(url, timeout_ms=0, browser=None):
         return {"url": url, "landed_on": "evil.example", "title": "Sign in",
                 "threat_level": "malicious", "screenshot": None, "error": "",
                 "threat_signals": ["asks for credentials on a domain the link "

@@ -17,6 +17,7 @@ import asyncio
 import base64
 import logging
 import os
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from .auth import URGENCY_PHRASES
 from .models import BAD, WARN, Finding
@@ -37,6 +38,18 @@ except ImportError:  # pragma: no cover - depends on the deployment image
 # that self-identifies as automation, which would make every scan look clean.
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+# Required to run Chromium inside a container:
+#   --no-sandbox            Chromium's own sandbox needs privileges the
+#                           container doesn't have; without this it won't start
+#                           at all on Cloud Run.
+#   --disable-dev-shm-usage Docker gives /dev/shm 64 MB by default and Chromium
+#                           crashes mid-page-load when it runs out. This puts
+#                           shared memory on disk instead.
+# Dropping our own sandboxing is acceptable here only because the container is
+# itself the isolation boundary, and it's discarded after each request.
+_LAUNCH_ARGS = ["--no-sandbox", "--disable-dev-shm-usage",
+                "--disable-gpu", "--mute-audio"]
 
 # Form fields that mean "this page is collecting credentials or payment data".
 _CREDENTIAL_FIELDS = ("password", "passwd", "pwd", "cvv", "cvc", "card",
@@ -193,8 +206,28 @@ def _score(result: dict) -> tuple[int, list[str]]:
     return score, signals
 
 
-async def detonate(url: str, timeout_ms: int = 30000) -> dict:
+@asynccontextmanager
+async def browser_session():
+    """One browser for a whole batch of links.
+
+    Launching a browser per URL costs a few hundred MB each, which OOMs a
+    modestly sized container as soon as two links are detonated at once. A
+    context per link is cheap and still gives each one its own cookie jar,
+    cache and storage, which is the isolation that actually matters here.
+    """
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=_LAUNCH_ARGS)
+        try:
+            yield browser
+        finally:
+            await browser.close()
+
+
+async def detonate(url: str, timeout_ms: int = 30000, browser=None) -> dict:
     """Open `url` in a disposable browser context and report what it does.
+
+    Pass `browser` from `browser_session()` to share one browser across a
+    batch; without it this launches (and closes) its own.
 
     Never raises: any failure comes back as a result with `error` set, so one
     dead link can't take a scan down.
@@ -212,12 +245,13 @@ async def detonate(url: str, timeout_ms: int = 30000) -> dict:
     console_errors: list[str] = []
 
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+        async with AsyncExitStack() as stack:
+            if browser is None:
+                browser = await stack.enter_async_context(browser_session())
+            context = await browser.new_context(
+                user_agent=_UA, ignore_https_errors=True,
+                viewport={"width": 1280, "height": 800})
             try:
-                context = await browser.new_context(
-                    user_agent=_UA, ignore_https_errors=True,
-                    viewport={"width": 1280, "height": 800})
                 page = await context.new_page()
 
                 page.on("request", lambda r: requests_seen.append(r.url))
@@ -252,7 +286,9 @@ async def detonate(url: str, timeout_ms: int = 30000) -> dict:
                     # Unreachable host, DNS failure, cert refusal, etc.
                     result["error"] = str(e).splitlines()[0][:160]
             finally:
-                await browser.close()
+                # Close the CONTEXT only. The browser may be shared with the
+                # other links in this batch; closing it here would kill them.
+                await context.close()
     except Exception as e:  # launch failure, missing browser binary, ...
         global _BROWSER_USABLE
         if "executable doesn't exist" in str(e).lower():
