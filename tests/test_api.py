@@ -222,6 +222,139 @@ def test_history_is_isolated_between_users():
     assert b.get("/api/my/stats").json()["scans"] == 0
 
 
+# ------------------------------------------------- streaming scan (websocket)
+
+def _drain_ws(ws) -> list[dict]:
+    """Collect every event up to and including the terminal one."""
+    events = []
+    while True:
+        msg = ws.receive_json()
+        events.append(msg)
+        if msg["type"] in ("scan_complete", "error"):
+            return events
+
+
+def test_ws_scan_requires_auth():
+    """An unauthenticated socket must be closed, not served."""
+    from starlette.websockets import WebSocketDisconnect
+    try:
+        with client.websocket_connect("/ws/scan") as ws:
+            ws.receive_json()
+        raise AssertionError("unauthenticated websocket was not closed")
+    except WebSocketDisconnect as e:
+        assert e.code == 1008
+
+
+def test_ws_scan_streams_stages_then_the_same_case_as_post():
+    """The streaming endpoint is the POST endpoint with progress events in
+    front of it: the stages must arrive in order and the final case must
+    match what /api/scan produces for the same message."""
+    c = _signed_in_client()
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+
+    with c.websocket_connect("/ws/scan") as ws:
+        ws.send_json({"raw": raw, "offline": True})
+        events = _drain_ws(ws)
+
+    kinds = [e["type"] for e in events]
+    assert kinds[-1] == "scan_complete"
+    # The progress callback fires from a worker thread; if it were dropped
+    # (e.g. an un-awaited coroutine) these stages would simply never arrive.
+    for stage in ("parse_started", "urls_extracted",
+                  "reputation_check_started", "reputation_check_completed"):
+        assert stage in kinds, f"missing {stage}: {kinds}"
+    assert kinds.index("parse_started") < kinds.index("urls_extracted")
+    assert kinds.index("urls_extracted") < kinds.index("reputation_check_started")
+
+    urls_event = events[kinds.index("urls_extracted")]["data"]
+    assert urls_event["count"] >= 1
+    assert urls_event["urls"][0]["domain"]
+
+    case = events[-1]["data"]
+    expected = _signed_in_client().post(
+        "/api/scan", json={"raw": raw, "offline": True}).json()
+    assert case["verdict"] == expected["verdict"] == "MALICIOUS"
+    assert case["score"] == expected["score"]
+    assert case["report_markdown"]
+
+    # ...and it landed in history, same as a POST scan would.
+    assert any(s["case_id"] == case["case_id"]
+               for s in c.get("/api/history").json()["scans"])
+
+
+def test_ws_scan_skips_sandbox_when_playwright_is_missing(monkeypatch):
+    """Playwright is an optional dependency: with no browser installed the
+    scan must still finish rather than erroring or hanging on that stage."""
+    monkeypatch.setattr(app_module.sandbox, "is_available", lambda: False)
+    c = _signed_in_client()
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+
+    with c.websocket_connect("/ws/scan") as ws:
+        ws.send_json({"raw": raw, "offline": False})
+        events = _drain_ws(ws)
+
+    kinds = [e["type"] for e in events]
+    assert kinds[-1] == "scan_complete"
+    assert "sandbox_starting" not in kinds
+    assert "sandbox" not in events[-1]["data"]
+
+
+def test_ws_scan_offline_never_opens_links(monkeypatch):
+    """Offline mode is a promise that nothing leaves this machine, so it must
+    suppress detonation even when a browser IS available."""
+    monkeypatch.setattr(app_module.sandbox, "is_available", lambda: True)
+
+    async def _boom(*a, **kw):
+        raise AssertionError("offline scan attempted to open a link")
+    monkeypatch.setattr(app_module.sandbox, "detonate", _boom)
+
+    c = _signed_in_client()
+    raw = (app_module.SAMPLES / "phish-0ffice365.eml").read_text(encoding="utf-8")
+    with c.websocket_connect("/ws/scan") as ws:
+        ws.send_json({"raw": raw, "offline": True})
+        events = _drain_ws(ws)
+    assert events[-1]["type"] == "scan_complete"
+
+
+def test_ws_scan_detonation_findings_change_the_verdict(monkeypatch):
+    """A sandbox hit has to actually move the case: its finding is added and
+    the score/verdict recomputed, not left at the pre-sandbox value."""
+    monkeypatch.setattr(app_module.sandbox, "is_available", lambda: True)
+
+    async def _fake(url, timeout_ms=0):
+        return {"url": url, "landed_on": "evil.example", "title": "Sign in",
+                "threat_level": "malicious", "screenshot": None, "error": "",
+                "threat_signals": ["asks for credentials on a domain the link "
+                                   "didn't claim to go to"],
+                "observations": ["collects password"]}
+    monkeypatch.setattr(app_module.sandbox, "detonate", _fake)
+
+    c = _signed_in_client()
+    raw = (app_module.SAMPLES / "clean-notification.eml").read_text(encoding="utf-8")
+    with c.websocket_connect("/ws/scan") as ws:
+        ws.send_json({"raw": raw, "offline": False})
+        events = _drain_ws(ws)
+
+    kinds = [e["type"] for e in events]
+    assert "sandbox_starting" in kinds
+    assert "sandbox_url_result" in kinds
+
+    case = events[-1]["data"]
+    assert any(f["category"] == "sandbox" for f in case["findings"])
+    assert case["verdict"] in ("SUSPICIOUS", "MALICIOUS")
+    # Screenshots are streamed for display but must not bloat the stored case.
+    assert all("screenshot" not in entry for entry in case["sandbox"])
+
+
+def test_ws_scan_rejects_oversized_input():
+    c = _signed_in_client()
+    with c.websocket_connect("/ws/scan") as ws:
+        ws.send_json({"raw": "x" * 2_000_000, "offline": True})
+        msg = ws.receive_json()
+    assert msg["type"] == "error"
+    assert "too large" in msg["message"]
+
+
 def test_expired_sessions_are_purged():
     n = next(_next_user)
     user = db.upsert_google_user(f"purge{n}@example.com", "Purge", f"sub-p{n}")

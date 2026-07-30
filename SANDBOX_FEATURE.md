@@ -1,262 +1,143 @@
-# Sandbox Link Analysis with Real-Time Progress Streaming
+# Streaming scans and sandboxed link detonation
 
-## Overview
+Two features that ship together:
 
-This feature adds dynamic URL sandbox analysis and real-time progress updates to the ReportIT.ai scanner. When you scan an email, you'll now see:
+1. **`/ws/scan`** — the same investigation as `POST /api/scan`, but each stage
+   reports as it finishes instead of the page sitting on one long request.
+2. **Link detonation** — the scanner opens each link in a throwaway headless
+   Chromium and reports what the landing page actually does, including a
+   screenshot of it.
 
-1. **Real-time progress updates** as the scan progresses through parsing, URL extraction, reputation checks, and sandbox analysis
-2. **Full landing page analysis** by actually visiting URLs in a headless browser:
-   - Captures screenshots of the actual page
-   - Detects credential harvesting forms (passwords, credit cards, SSN fields)
-   - Identifies login pages with urgency language
-   - Flags phishing techniques (iframes, obfuscated JS, redirects)
-   - Analyzes network requests and tracking domains
-3. **Threat scoring** based on phishing indicators found on the landing page (30-59 = SUSPICIOUS, 60+ = MALICIOUS)
-4. **Incremental findings** displayed as they're discovered
+`POST /api/scan` is unchanged and still works. The browser uses it as an
+automatic fallback wherever a WebSocket can't be established.
 
-## Architecture
+---
 
-### Backend
+## Progress events
 
-#### WebSocket Endpoint (`/ws/scan`)
-- **Protocol**: WebSocket (bidirectional)
-- **Authentication**: Session cookie required
-- **Flow**:
-  1. Client connects and sends scan request: `{raw, offline, kind, sender}`
-  2. Server emits progress events in real-time
-  3. Client renders progress updates incrementally
-  4. Final event contains complete results
+The client opens a socket, sends `{raw, offline, kind, sender}`, and reads
+events until a terminal one. Every event is `{"type": ..., "data": {...}}`.
 
-#### Progress Events
+| `type` | when | notable `data` |
+|---|---|---|
+| `parse_started` | message parsing begins | — |
+| `urls_extracted` | links pulled out | `count`, `urls[{url, domain}]` |
+| `reputation_check_started` | threat-intel lookups begin | `url_count` |
+| `reputation_check_completed` | lookups done | `findings_count` |
+| `sandbox_starting` | detonation begins | `url_count` |
+| `sandbox_url_result` | one link finished | see below |
+| `ai_started` | AI pass begins | `enabled` |
+| `scan_complete` | **terminal** — the full case | the same dict `/api/scan` returns |
+| `error` | **terminal** — nothing usable | `message`, sometimes `refresh_at` |
 
-```json
-{
-  "type": "parse_started",
-  "data": {}
-}
-```
+`sandbox_url_result.data`: `url`, `domain`, `landed_on`, `title`,
+`threat_level`, `threat_signals[]`, `observations[]`, `error`, and
+`screenshot` (base64 JPEG, or `null` when capture failed or the image was
+over ~400 KB — it is dropped rather than truncated, since a sliced base64
+string decodes to a broken image).
 
-```json
-{
-  "type": "urls_extracted",
-  "data": {
-    "count": 3,
-    "urls": [
-      {"url": "hxxps://example[.]com", "domain": "example.com"}
-    ]
-  }
-}
-```
+Auth failure closes the socket with code **1008** before any event.
 
-```json
-{
-  "type": "reputation_check_started",
-  "data": {"url_count": 3}
-}
-```
+---
 
-```json
-{
-  "type": "sandbox_starting",
-  "data": {"url_count": 3}
-}
-```
+## What detonation looks at
 
-```json
-{
-  "type": "sandbox_url_result",
-  "data": {
-    "url": "hxxps://example[.]com",
-    "domain": "example.com",
-    "threat_level": "suspicious",
-    "threat_signals": ["Page load timeout"],
-    "screenshot": "<base64-image-data>"
-  }
-}
-```
+`threadline/sandbox.py` observes; it does not guess from keywords.
 
-```json
-{
-  "type": "scan_complete",
-  "data": {
-    "case_id": "1234",
-    "verdict": "MALICIOUS",
-    "confidence": "HIGH",
-    "score": 75,
-    ...
-  }
-}
-```
+**Observed:** final URL after redirects, page title, credential inputs
+(checking `type`/`name`/`id`/`placeholder`, since kits use `type="text"` with
+`name="passwd"` to dodge scanners), iframe count, third-party hosts contacted,
+console errors, urgency wording (reusing the scanner's existing
+`URGENCY_PHRASES`).
 
-### Sandbox Module (`threadline/sandbox.py`)
+**Scored:** only *combinations*. A login form on its own is not a signal —
+real banks have login forms. What scores is a credential form somewhere the
+link didn't claim to go, or over plain HTTP, or on a high-abuse TLD:
 
-#### `is_available() -> bool`
-Checks if Playwright is installed and available.
+| signal | points |
+|---|---|
+| landed on a different registered domain than the link claimed | 20 |
+| credentials requested over plain HTTP | 35 |
+| credentials on a cross-domain landing | 30 |
+| credentials on a high-abuse TLD | 30 |
+| credentials + pressure wording | 20 |
+| credentials + embedded frames | 15 |
+| high-abuse TLD, no credential form | 15 |
+| obfuscated script (`eval`/`atob`/`unescape`) | 15 |
 
-#### `sandbox_analyze_url(url, timeout_ms=30000) -> dict`
-Visits a URL in a headless Chromium browser and analyzes the landing page:
+`>= 55` → **malicious** (BAD finding, weight 30) ·
+`>= 25` → **suspicious** (WARN finding, weight 15) · otherwise nothing.
 
-**Page Analysis:**
-- `screenshot`: Base64-encoded PNG of the actual landing page
-- `title`: Page title (often spoofed by phishers)
-- `has_login_form`: Detected login/authentication prompts
-- `has_password_field`: Found password input field(s)
-- `phishing_indicators`: List of detected phishing techniques
+A legitimate HTTPS sign-in page on its own domain scores **0**. After
+detonation the case score and verdict are recomputed, so a sandbox hit can
+change the verdict.
 
-**Network Monitoring:**
-- `network_requests`: List of all network requests made by the page
-- `network_threats`: Suspicious domains contacted by the page
-- `redirects`: Chain of HTTP redirects (chain length matters)
-- `console_errors`: JavaScript console errors and warnings
+---
 
-**Threat Assessment:**
-- `threat_level`: "none", "suspicious" (30-59 pts), or "malicious" (60+ pts)
-- `threat_signals`: List of specific threat indicators found
+## Setup
 
-**Scoring Formula:**
-- Network threats: +25 points
-- Obfuscated JS: +15 points  
-- Phishing indicators (per indicator): +5 points
-- Multiple phishing indicators: +30 base
-- Password field + suspicious form: +20 points
-
-#### `sandbox_finding(result, url) -> Finding | None`
-Converts sandbox analysis results into a scanner Finding.
-
-### Frontend
-
-#### Progress Panel
-Shows 4-stage pipeline with real-time updates:
-1. **Parsing** - Extracting email structure
-2. **Links** - Finding URLs in the email
-3. **Reputation** - Checking reputation databases
-4. **Sandbox** - Analyzing URLs in a browser
-
-Each stage shows:
-- Status indicator (⏳ running, ✓ done, ✗ error)
-- Step details (e.g., number of links found)
-- Per-URL results (for sandbox stage)
-
-#### WebSocket Connection
-JavaScript connects to `/ws/scan` on button click:
-```javascript
-const ws = new WebSocket(`ws://${location.host}/ws/scan`);
-ws.send(JSON.stringify({
-  raw: emailText,
-  offline: isOfflineMode,
-  kind: "email" | "sms",
-  sender: smsSenderNumber
-}));
-```
-
-Listens for progress events and updates UI incrementally.
-
-## Installation
-
-1. Install Playwright (optional, sandbox will gracefully skip if unavailable):
-   ```bash
-   pip install -r requirements.txt
-   playwright install chromium
-   ```
-
-2. Run the app:
-   ```bash
-   uvicorn app:app --reload
-   ```
-
-3. Navigate to `/scan` and submit an email
-
-## Features
-
-### Graceful Degradation
-- If Playwright is not installed, sandbox analysis is skipped
-- Scan still completes with full results from URLhaus, VirusTotal, etc.
-- No errors are raised; the system just doesn't perform dynamic analysis
-
-### Real-Time Progress
-- Each step emits progress events as it completes
-- UI updates incrementally (no need to wait for entire scan)
-- WebSocket allows bidirectional communication
-- Progress panel shows which URLs are being analyzed
-
-### Threat Detection
-- Screenshots of landing pages
-- Network request logging (detects C2 beacons, data exfil)
-- JavaScript console error detection
-- Redirect chain tracking
-- Timeout detection (page hangs = suspicious)
-
-## Configuration
-
-### Environment Variables
-- `SANDBOX_ENABLED`: Set to `false` to disable sandbox (default: true if Playwright available)
-
-### Timeouts
-- Per-URL sandbox timeout: 30 seconds (configurable in `sandbox.py`)
-- Page wait strategy: "domcontentloaded"
-
-### Parallel Analysis
-- Maximum 5 concurrent URL analyses
-- Prevents resource exhaustion
-
-## Testing
-
-Run the feature test:
 ```bash
-python test_websocket_feature.py
+pip install -r requirements.txt
+playwright install chromium
 ```
 
-Test manually:
-1. Open http://localhost:8741/scan (after signing in)
-2. Load a sample phishing email
-3. Watch the progress panel update in real-time
-4. Observe sandbox analysis for each URL (if Playwright installed)
+Both matter, and for different reasons:
 
-## Backward Compatibility
+- **`websockets`** — bare `uvicorn` ships no WebSocket protocol
+  implementation and `/ws/scan` returns 404 with *"No supported WebSocket
+  library detected"*. Starlette's `TestClient` talks ASGI directly and will
+  **not** catch this; it only appears over a real socket.
+- **`playwright install chromium`** — `pip install playwright` installs the
+  Python bindings only, not the browser. The Dockerfile runs this (adds
+  ~400 MB).
 
-- Old `/api/scan` POST endpoint still works (no changes)
-- New WebSocket `/ws/scan` is addition-only
-- Existing exports (JSON/Markdown) still work
-- No database schema changes
+### Configuration
 
-## Performance
+| env var | default | meaning |
+|---|---|---|
+| `REPORTIT_SANDBOX` | `on` | `off` disables detonation entirely |
+| `REPORTIT_SANDBOX_MAX_URLS` | `5` | links detonated per scan |
+| `REPORTIT_SANDBOX_CONCURRENCY` | `3` | pages open at once |
+| `REPORTIT_SANDBOX_TIMEOUT_MS` | `20000` | deadline per page |
 
-- **Without Playwright**: ~2-5 seconds (same as before)
-- **With Playwright**: +30 seconds per URL (up to 5 parallel)
-  - Example: 3 URLs → ~30 seconds additional (not 90)
+---
 
-## Known Limitations
+## Degradation
 
-1. **30-second timeout per URL** - pages that hang longer are marked as suspicious
-2. **Screenshots limited to 500KB** - large pages are downsampled
-3. **Network request log limited to 50 requests** - shows first 50 only
-4. **Console errors limited to 5** - only reports first 5 JS errors
-5. **Only analyzes first 10 URLs** - if email has more than 10 links, only first 10 get sandbox analysis
-6. **No file downloads** - doesn't execute or download attachments
-7. **No plugin/extension execution** - JavaScript-only analysis (no Flash, Java, etc.)
+Every one of these completes the scan rather than failing it:
 
-## What We DO Now (Changed)
+- **No `websockets`, or a proxy that drops the upgrade** → the browser falls
+  back to `POST /api/scan`; the sandbox stage shows *"needs live connection"*.
+- **No Playwright / no Chromium** → detonation is skipped. The first launch
+  failure caused by a missing binary latches `is_available()` to `False`, so
+  later scans don't re-pay the timeout.
+- **Offline mode** → never opens a link, even where a browser is available.
+  There is a test asserting this.
+- **A link that hangs or refuses** → that one link reports `error`; the rest
+  of the scan is unaffected.
 
-✅ **We now visit links** - The sandbox actually navigates to URLs in a headless browser  
-✅ **We capture landing pages** - Screenshots of what phishers show victims  
-✅ **We detect phishing pages** - Login forms, credential harvesting, urgency tactics  
-✅ **We analyze page behavior** - Network requests, redirects, obfuscated code  
+---
 
-This is no longer passive URL checking—it's active threat analysis.
+## Deployment note: Firebase Hosting
 
-## Future Enhancements
+`firebase.json` rewrites `**` to Cloud Run. Cloud Run itself supports
+WebSockets, but **Firebase Hosting's rewrite layer is not known to forward
+WebSocket upgrades** — so on `reportit-ai.web.app` the socket may fail while
+the same build works when hit directly on its Cloud Run URL.
 
-- DOM/HTML analysis for injected phishing elements
-- Storage of full page HTML (not just screenshots)
-- Cloud-based artifact storage for large screenshots
-- Integration with known phishing page databases
-- Machine learning classification of phishing likelihood
-- Browser fingerprinting detection
-- Cookie/tracking detection
+This is why the HTTP fallback exists: if the upgrade is dropped, scanning
+still works, minus live progress and minus detonation. **Verify after
+deploying** — open the scanner, run a scan, and check whether the stage list
+animates or the panel shows *"live progress unavailable"*. If it's the
+latter, point the scanner at the Cloud Run domain directly.
 
-## Security Notes
+---
 
-- Browser runs in isolated headless process
-- No user data leakage (processes killed after timeout)
-- Timeout prevents hanging on adversarial pages
-- Network isolation available (if needed for sensitive analysis)
+## Privacy
+
+Detonation opens attacker-controlled URLs **from the server**, never from the
+user's browser. That is a deliberate trade: it reveals the server's IP to the
+sender and confirms the message was opened. Offline mode skips it, and the
+landing page copy says so plainly. Screenshots stream to the page for display
+but are stripped from the stored case — `db.record_scan` persists metadata
+columns only.
