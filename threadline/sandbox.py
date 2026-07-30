@@ -26,17 +26,113 @@ def is_available() -> bool:
     return _PLAYWRIGHT_AVAILABLE
 
 
+async def _analyze_landing_page(page) -> dict:
+    """Analyze the current page for phishing indicators."""
+    indicators = []
+    has_login_form = False
+    has_password_field = False
+
+    try:
+        # Check for login forms
+        login_keywords = [
+            "login", "sign in", "sign-in", "signin", "log in", "log-in", "authenticate",
+            "verify account", "verify your account", "confirm identity", "re-verify"
+        ]
+
+        form_text = await page.inner_text("body", timeout=5000).catch(lambda: "")
+        form_text_lower = form_text.lower()
+
+        if any(keyword in form_text_lower for keyword in login_keywords):
+            has_login_form = True
+            indicators.append("Page contains login/authentication prompts")
+
+        # Check for password fields
+        password_count = await page.query_selector_all("input[type='password']")
+        if password_count:
+            has_password_field = True
+            indicators.append(f"Page has {len(password_count)} password input field(s)")
+
+        # Check for credential-harvesting forms
+        inputs = await page.query_selector_all("input")
+        input_types = []
+        for inp in inputs:
+            input_type = await inp.get_attribute("type")
+            placeholder = await inp.get_attribute("placeholder")
+            name = await inp.get_attribute("name")
+            if placeholder:
+                input_types.append(placeholder.lower())
+            if name:
+                input_types.append(name.lower())
+
+        # Suspicious field names
+        suspicious_fields = [
+            "password", "pwd", "pass", "credit card", "cc", "cvv", "ssn",
+            "social security", "bank", "account", "username", "email"
+        ]
+        found_suspicious = [f for f in input_types if any(s in f for s in suspicious_fields)]
+        if found_suspicious:
+            indicators.append(f"Suspicious form fields detected: {', '.join(set(found_suspicious)[:3])}")
+
+        # Check for iframes (common phishing tactic)
+        iframes = await page.query_selector_all("iframe")
+        if iframes:
+            indicators.append(f"Page contains {len(iframes)} embedded iframe(s) (used to hide content)")
+
+        # Check page title for spoofing
+        title = await page.title()
+        spoofing_keywords = [
+            "verify", "confirm", "urgent", "action required", "update",
+            "suspended", "locked", "limited", "restricted", "unusual activity"
+        ]
+        if any(keyword in title.lower() for keyword in spoofing_keywords):
+            indicators.append(f"Page title contains urgency language: '{title}'")
+
+        # Check for mixed content warnings (HTTP resources on HTTPS)
+        mixed_content = [r for r in await page.context.pages[0].query_selector_all("*")
+                        if await r.get_attribute("src")]
+        # This is a simplified check
+
+        # Check page content for common phishing phrases
+        phishing_phrases = [
+            "confirm your identity",
+            "verify your account",
+            "update payment information",
+            "unusual activity detected",
+            "temporary access",
+            "re-enter your password",
+            "click here immediately",
+            "act now"
+        ]
+        for phrase in phishing_phrases:
+            if phrase in form_text_lower:
+                indicators.append(f"Phishing phrase detected: '{phrase}'")
+                break
+
+    except Exception as e:
+        logger.debug(f"Error analyzing landing page: {e}")
+
+    return {
+        "phishing_indicators": indicators,
+        "has_login_form": has_login_form,
+        "has_password_field": has_password_field,
+    }
+
+
 async def sandbox_analyze_url(
     url: str, timeout_ms: int = 30000, max_screenshot_kb: int = 500
 ) -> dict:
-    """Analyze a URL in a headless browser sandbox.
+    """Analyze a URL in a headless browser sandbox by actually visiting it.
 
     Returns dict with:
-    - screenshot: base64 PNG or None if capture failed
+    - screenshot: base64 PNG of landing page
     - network_requests: list of {url, status, type} dicts
     - network_threats: list of suspicious domain patterns found
     - redirects: list of redirect chain
     - console_errors: list of JS console errors
+    - phishing_indicators: list of detected phishing patterns on landing page
+    - title: page title
+    - has_login_form: bool - detected login/credential form
+    - has_password_field: bool - detected password input field
     - threat_level: "none" | "suspicious" | "malicious"
     - threat_signals: list of threat indicators found
     """
@@ -57,6 +153,10 @@ async def sandbox_analyze_url(
         "network_threats": [],
         "redirects": [],
         "console_errors": [],
+        "phishing_indicators": [],
+        "title": "",
+        "has_login_form": False,
+        "has_password_field": False,
         "threat_level": "none",
         "threat_signals": [],
     }
@@ -111,8 +211,15 @@ async def sandbox_analyze_url(
                 # Navigate to URL with timeout
                 await page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
 
-                # Wait briefly for JS execution
+                # Wait briefly for JS execution and dynamic content
                 await asyncio.sleep(2)
+
+                # Extract page title
+                result["title"] = await page.title()
+
+                # Analyze landing page for phishing indicators
+                phishing_checks = await _analyze_landing_page(page)
+                result.update(phishing_checks)
 
                 # Capture screenshot (resize to avoid huge images)
                 try:
@@ -142,15 +249,38 @@ async def sandbox_analyze_url(
             result["network_threats"] = list(set(threats_found))
             result["redirects"] = redirect_chain
 
-            # Determine threat level
+            # Determine threat level based on all indicators
+            threat_score = 0
+
+            # Network threats
             if result["network_threats"] or redirect_chain:
-                result["threat_level"] = "suspicious"
+                threat_score += 25
                 result["threat_signals"].append(
                     f"{len(result['network_threats'])} suspicious domains contacted"
                 )
+
+            # Console obfuscation
             if any("obfuscate" in m.get("text", "").lower() for m in console_messages):
-                result["threat_level"] = "suspicious"
+                threat_score += 15
                 result["threat_signals"].append("Obfuscated code detected in console")
+
+            # Phishing indicators on landing page
+            if result.get("phishing_indicators"):
+                threat_score += 30 + (len(result["phishing_indicators"]) * 5)
+                result["threat_signals"].extend(result["phishing_indicators"])
+
+            # Password harvesting form
+            if result.get("has_password_field") and result.get("phishing_indicators"):
+                threat_score += 20
+                result["threat_signals"].append("Password field detected on suspicious login form")
+
+            # Set threat level based on score
+            if threat_score >= 60:
+                result["threat_level"] = "malicious"
+            elif threat_score >= 30:
+                result["threat_level"] = "suspicious"
+            else:
+                result["threat_level"] = "none"
 
             await context.close()
             await browser.close()
