@@ -5,8 +5,14 @@
 This feature adds dynamic URL sandbox analysis and real-time progress updates to the ReportIT.ai scanner. When you scan an email, you'll now see:
 
 1. **Real-time progress updates** as the scan progresses through parsing, URL extraction, reputation checks, and sandbox analysis
-2. **Dynamic threat detection** by visiting each URL in a headless browser and capturing screenshots, network activity, and console errors
-3. **Incremental findings** displayed as they're discovered, rather than waiting for the entire scan to complete
+2. **Full landing page analysis** by actually visiting URLs in a headless browser:
+   - Captures screenshots of the actual page
+   - Detects credential harvesting forms (passwords, credit cards, SSN fields)
+   - Identifies login pages with urgency language
+   - Flags phishing techniques (iframes, obfuscated JS, redirects)
+   - Analyzes network requests and tracking domains
+3. **Threat scoring** based on phishing indicators found on the landing page (30-59 = SUSPICIOUS, 60+ = MALICIOUS)
+4. **Incremental findings** displayed as they're discovered
 
 ## Architecture
 
@@ -88,14 +94,31 @@ This feature adds dynamic URL sandbox analysis and real-time progress updates to
 Checks if Playwright is installed and available.
 
 #### `sandbox_analyze_url(url, timeout_ms=30000) -> dict`
-Visits a URL in a headless Chromium browser and returns:
-- `screenshot`: Base64-encoded PNG screenshot
-- `network_requests`: List of network requests made by the page
+Visits a URL in a headless Chromium browser and analyzes the landing page:
+
+**Page Analysis:**
+- `screenshot`: Base64-encoded PNG of the actual landing page
+- `title`: Page title (often spoofed by phishers)
+- `has_login_form`: Detected login/authentication prompts
+- `has_password_field`: Found password input field(s)
+- `phishing_indicators`: List of detected phishing techniques
+
+**Network Monitoring:**
+- `network_requests`: List of all network requests made by the page
 - `network_threats`: Suspicious domains contacted by the page
-- `redirects`: Chain of HTTP redirects
-- `console_errors`: JavaScript console errors
-- `threat_level`: "none", "suspicious", or "malicious"
-- `threat_signals`: List of threat indicators found
+- `redirects`: Chain of HTTP redirects (chain length matters)
+- `console_errors`: JavaScript console errors and warnings
+
+**Threat Assessment:**
+- `threat_level`: "none", "suspicious" (30-59 pts), or "malicious" (60+ pts)
+- `threat_signals`: List of specific threat indicators found
+
+**Scoring Formula:**
+- Network threats: +25 points
+- Obfuscated JS: +15 points  
+- Phishing indicators (per indicator): +5 points
+- Multiple phishing indicators: +30 base
+- Password field + suspicious form: +20 points
 
 #### `sandbox_finding(result, url) -> Finding | None`
 Converts sandbox analysis results into a scanner Finding.
@@ -204,18 +227,32 @@ Test manually:
 
 ## Known Limitations
 
-1. Screenshots are limited to 500KB to avoid bloating JSON responses
-2. Network request log limited to first 50 requests
-3. Console errors limited to first 5
-4. Only analyzes first 10 URLs if more than 10 exist (matches URLhaus behavior)
+1. **30-second timeout per URL** - pages that hang longer are marked as suspicious
+2. **Screenshots limited to 500KB** - large pages are downsampled
+3. **Network request log limited to 50 requests** - shows first 50 only
+4. **Console errors limited to 5** - only reports first 5 JS errors
+5. **Only analyzes first 10 URLs** - if email has more than 10 links, only first 10 get sandbox analysis
+6. **No file downloads** - doesn't execute or download attachments
+7. **No plugin/extension execution** - JavaScript-only analysis (no Flash, Java, etc.)
+
+## What We DO Now (Changed)
+
+✅ **We now visit links** - The sandbox actually navigates to URLs in a headless browser  
+✅ **We capture landing pages** - Screenshots of what phishers show victims  
+✅ **We detect phishing pages** - Login forms, credential harvesting, urgency tactics  
+✅ **We analyze page behavior** - Network requests, redirects, obfuscated code  
+
+This is no longer passive URL checking—it's active threat analysis.
 
 ## Future Enhancements
 
-- Add behavioral sandbox (Cuckoo, Joe Sandbox integration)
-- Store sandbox artifacts separately (large images in cloud storage)
-- Add DOM snapshot analysis
-- Add PDF payload detonation
-- Machine learning threat classification
+- DOM/HTML analysis for injected phishing elements
+- Storage of full page HTML (not just screenshots)
+- Cloud-based artifact storage for large screenshots
+- Integration with known phishing page databases
+- Machine learning classification of phishing likelihood
+- Browser fingerprinting detection
+- Cookie/tracking detection
 
 ## Security Notes
 
