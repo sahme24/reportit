@@ -183,13 +183,25 @@ def _build_chain(email: ParsedEmail, urls: list[UrlInfo],
     return chain
 
 
-def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
+def scan(raw: bytes | str, offline: bool = False, enrich=None, on_progress=None) -> Case:
     """Run a full investigation. `enrich(email, urls) -> list[Finding]` lets the
-    caller add context the engine can't know (e.g. instance scan history)."""
+    caller add context the engine can't know (e.g. instance scan history).
+
+    `on_progress(step: str, data: dict)` callback for streaming progress updates.
+    """
+    if on_progress:
+        on_progress("parse_started", {})
+
     email = parse_email(raw)
 
     url_pairs = extract_urls(email.body_text, email.body_html)
     urls = [analyze_url(u, text) for u, text in url_pairs]
+
+    if on_progress:
+        on_progress("urls_extracted", {
+            "count": len(urls),
+            "urls": [{"url": u.defanged, "domain": u.domain} for u in urls[:20]],
+        })
 
     # OCR any images and merge recovered URLs into the main pipeline so
     # they get the same heuristics + reputation checks as body links.
@@ -202,6 +214,9 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
     language, lang_findings, matched_phrases = content_findings(
         f"{email.subject}\n{email.body_text}")
 
+    if on_progress:
+        on_progress("reputation_check_started", {"url_count": len(urls)})
+
     findings = auth_findings(email)
     findings += lang_findings
     findings += image_findings
@@ -210,6 +225,11 @@ def scan(raw: bytes | str, offline: bool = False, enrich=None) -> Case:
     findings += reputation_findings(email.sender_ip, urls, offline=offline)
     if enrich:
         findings += enrich(email, urls)
+
+    if on_progress:
+        on_progress("reputation_check_completed", {
+            "findings_count": len(findings),
+        })
     findings.sort(key=lambda f: _SEV_ORDER.get(f.severity, 9))
 
     score = min(sum(f.weight for f in findings), 100)

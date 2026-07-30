@@ -11,18 +11,21 @@ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
 import anthropic
 import requests as http
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import json
+import asyncio
 
-from threadline import ai, db
+from threadline import ai, db, sandbox
 from threadline.advice import advice_for
 from threadline.models import OK, WARN, Finding
 from threadline.report import markdown_report
@@ -35,6 +38,7 @@ load_dotenv()
 app = FastAPI(title="ReportIT.ai", version="0.4.0")
 STATIC = Path(__file__).parent / "static"
 SAMPLES = Path(__file__).parent / "samples"
+logger = logging.getLogger(__name__)
 
 db.init_db()
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
@@ -332,6 +336,160 @@ def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict:
 
     db.record_scan(user["id"], result)
     return result
+
+
+@app.websocket("/ws/scan")
+async def ws_scan(websocket: WebSocket, session_cookie: str = Cookie(default="", alias=_COOKIE)):
+    """WebSocket endpoint for streaming scan progress and results."""
+    user = db.user_for_session(session_cookie)
+    if not user:
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+
+    await websocket.accept()
+    sandbox_tasks = []
+
+    try:
+        # Receive scan request
+        data = await websocket.receive_json()
+        raw = data.get("raw", "")
+        offline = data.get("offline", False)
+        kind = data.get("kind", "email")
+        sender = data.get("sender", "")
+
+        if not raw.strip():
+            await websocket.send_json({"type": "error", "message": "Paste a message first."})
+            await websocket.close()
+            return
+
+        if len(raw) > _MAX_RAW_CHARS:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Message too large (1.5 MB limit)."
+            })
+            await websocket.close()
+            return
+
+        # Check AI quota
+        ai_enabled = ai.is_configured() and not offline
+        used = 0
+        if ai_enabled:
+            used, refresh_at = db.ai_usage(user["id"])
+            if used >= _AI_DAILY_LIMIT:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Daily scan limit reached.",
+                    "refresh_at": refresh_at,
+                })
+                await websocket.close()
+                return
+
+        # Progress callback that sends events via WebSocket
+        async def on_progress(step: str, data: dict):
+            try:
+                await websocket.send_json({"type": step, "data": data})
+            except Exception as e:
+                # Connection closed or send failed
+                pass
+
+        # Run the scan with progress updates
+        if kind == "sms":
+            case = scan_sms(raw, sender=sender, offline=offline,
+                          enrich=_sms_enrichment, on_progress=on_progress)
+        else:
+            case = scan(raw, offline=offline, enrich=_email_enrichment,
+                       on_progress=on_progress)
+
+        # Run sandbox analysis on URLs (if available and not offline)
+        if sandbox.is_available() and not offline and case.urls:
+            await websocket.send_json({
+                "type": "sandbox_starting",
+                "data": {"url_count": len(case.urls)},
+            })
+
+            # Analyze URLs in parallel (max 5 at a time)
+            semaphore = asyncio.Semaphore(5)
+            sandbox_findings = []
+
+            async def analyze_url_sandboxed(url_info):
+                async with semaphore:
+                    try:
+                        result = await sandbox.sandbox_analyze_url(url_info.url)
+
+                        # Send result immediately
+                        await websocket.send_json({
+                            "type": "sandbox_url_result",
+                            "data": {
+                                "url": url_info.defanged,
+                                "domain": url_info.domain,
+                                "threat_level": result.get("threat_level", "none"),
+                                "threat_signals": result.get("threat_signals", []),
+                                "screenshot": result.get("screenshot", None)[:50000] if result.get("screenshot") else None,  # Limit size
+                            },
+                        })
+
+                        # Create finding if threats detected
+                        finding = sandbox.sandbox_finding(result, url_info.url)
+                        if finding:
+                            sandbox_findings.append(finding)
+
+                    except Exception as e:
+                        logger.warning(f"Sandbox analysis failed for {url_info.url}: {e}")
+
+            # Run all analyses in parallel
+            await asyncio.gather(
+                *[analyze_url_sandboxed(u) for u in case.urls],
+                return_exceptions=True
+            )
+
+            # Add sandbox findings to case
+            case.findings += sandbox_findings
+
+        # AI analysis (if enabled)
+        opinion = None
+        if ai_enabled:
+            db.record_ai_use(user["id"])
+            opinion = _ai_opinion(case.to_dict())
+            if opinion:
+                case.verdict = opinion["verdict"]
+                case.confidence = opinion["confidence"]
+                case.recommendations = advice_for(case.kind, case.verdict, case.findings)
+
+        # Build final result
+        result = case.to_dict()
+        result["report_markdown"] = markdown_report(
+            case, reporter=user, ai_summary=opinion["summary"] if opinion else None)
+        if opinion:
+            result["ai_opinion"] = {"summary": opinion["summary"],
+                                    "actions": opinion["actions"]}
+            result["uses_left"] = max(_AI_DAILY_LIMIT - used - 1, 0)
+
+        # Record scan in database
+        db.record_scan(user["id"], result)
+
+        # Send final result
+        await websocket.send_json({
+            "type": "scan_complete",
+            "data": result,
+        })
+
+    except WebSocketDisconnect:
+        # Client disconnected
+        pass
+    except Exception as e:
+        logger.error(f"WebSocket scan error: {e}")
+        try:
+            await websocket.send_json({
+                "type": "error",
+                "message": f"Scan failed: {str(e)[:200]}",
+            })
+        except:
+            pass
+    finally:
+        # Cleanup
+        for task in sandbox_tasks:
+            if not task.done():
+                task.cancel()
 
 
 @app.get("/api/history")

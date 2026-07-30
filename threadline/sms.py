@@ -135,11 +135,23 @@ def _build_chain(sender: str, urls, findings) -> list[ChainNode]:
 
 
 def scan_sms(text: str, sender: str = "", offline: bool = False,
-             enrich=None) -> Case:
+             enrich=None, on_progress=None) -> Case:
     """Investigate a text message. `enrich(sender, urls) -> list[Finding]`
-    lets the caller add instance history the engine can't know."""
+    lets the caller add instance history the engine can't know.
+
+    `on_progress(step: str, data: dict)` callback for streaming progress updates.
+    """
+    if on_progress:
+        on_progress("parse_started", {})
+
     text = refang(text.strip())
     urls = [analyze_url(m.rstrip(".,;")) for m in dict.fromkeys(URL_RE.findall(text))]
+
+    if on_progress:
+        on_progress("urls_extracted", {
+            "count": len(urls),
+            "urls": [{"url": u.defanged, "domain": u.domain} for u in urls[:20]],
+        })
 
     # Language-aware content signals (urgency incl. SMS-specific phrasing,
     # info requests, authority claims) from the config-driven layer.
