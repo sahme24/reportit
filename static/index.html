@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReportIT.ai - Know if that email is real</title>
+<title>CatPhish - Know if that email is real</title>
 <meta name="description" content="Paste a suspicious email. Get an instant, expert-level investigation. No guessing.">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -320,7 +320,7 @@
     <div class="hero-left">
       <h1>Know if that email is actually from your bank.</h1>
       <p class="subheading">
-        Phishing emails are getting smarter. ReportIT.ai gives you the tools a security analyst uses to investigate them—in seconds, for free.
+        Phishing emails are getting smarter. CatPhish gives you the tools a security analyst uses to investigate them—in seconds, for free.
       </p>
       <div class="hero-cta">
         <a href="/login?mode=signup" class="btn primary">Try it free →</a>
@@ -423,7 +423,7 @@
 </section>
 
 <!-- Privacy: trust note -->
-<section class="section-two-col" style="padding-top: 80px;">
+<section class="section-two-col" id="trust" style="padding-top: 80px;">
   <div>
     <h2>Your email isn't our data.</h2>
   </div>
@@ -442,7 +442,7 @@
 </section>
 
 <!-- FAQ -->
-<section class="faq-section">
+<section class="faq-section" id="faq">
   <h2>Questions people ask.</h2>
 
   <div class="faq-item">
@@ -499,7 +499,7 @@
 
 <footer class="footer">
   <div class="wrap footer-row">
-    <span>ReportIT.ai. Phishing and smishing investigation for everyone.
+    <span>CatPhish. Phishing and smishing investigation for everyone.
       Built by <a href="https://www.linkedin.com/in/salmanahmed18" target="_blank" rel="noopener">Salman Ahmed</a>.</span>
     <span>
       <a href="/#how">How it works</a> ·
@@ -508,7 +508,7 @@
       <a href="/login">Sign in</a>
     </span>
   </div>
-  <div class="wrap footer-copyright">&copy; <span id="footerYear"></span> ReportIT.ai. All rights reserved.</div>
+  <div class="wrap footer-copyright">&copy; <span id="footerYear"></span> CatPhish. All rights reserved.</div>
 </footer>
 
 <script src="/static/shared.js"></script>
@@ -516,7 +516,7 @@
 // No redirect for signed-in visitors: the logo in the navbar points here, so
 // bouncing them to /dashboard makes the landing page unreachable once you
 // have a session.
-ReportIT.topbar("/");
+CatPhish.topbar("/");
 document.getElementById("footerYear").textContent = new Date().getFullYear();
 </script>
 </body>

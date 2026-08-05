@@ -15,7 +15,7 @@ import anthropic
 # instance. Override with REPORTIT_AI_MODEL to use a bigger model.
 _MODEL = os.environ.get("REPORTIT_AI_MODEL", "claude-haiku-4-5")
 
-_SYSTEM = """You are the AI analyst inside ReportIT.ai, an open-source phishing
+_SYSTEM = """You are the AI analyst inside CatPhish, an open-source phishing
 and smishing investigation tool for everyday people. Every scan is a single
 pass: automated heuristics gather the evidence, and your verdict is what the
 person actually sees. There is no separate "heuristic verdict" shown next to

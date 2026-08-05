@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReportIT.ai</title>
+<title>CatPhish</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -42,10 +42,10 @@
 
 <script src="/static/shared.js"></script>
 <script>
-const esc = ReportIT.esc;
+const esc = CatPhish.esc;
 const chip = v => v === "MALICIOUS" ? "bad" : v === "SUSPICIOUS" ? "warn" : "ok";
 
-ReportIT.topbar("/history").then(async user => {
+CatPhish.topbar("/history").then(async user => {
   if (!user) { location.href = "/login?next=/history"; return; }
   const r = await fetch("/api/history");
   const { scans } = await r.json();
@@ -58,7 +58,7 @@ ReportIT.topbar("/history").then(async user => {
   document.getElementById("rows").innerHTML = scans.map(s => `
     <tr>
       <td class="mono">#${esc(s.case_id)}</td>
-      <td>${s.kind === "sms" ? ReportIT.icon.sms + "SMS" : ReportIT.icon.email + "Email"}</td>
+      <td>${s.kind === "sms" ? CatPhish.icon.sms + "SMS" : CatPhish.icon.email + "Email"}</td>
       <td><span class="chip ${chip(s.verdict)}">${esc(s.verdict)}</span></td>
       <td class="mono">${s.score}/100</td>
       <td class="mono">${esc(s.from_addr || "—")}</td>

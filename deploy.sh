@@ -18,7 +18,15 @@ BUCKET="${PROJECT_ID}-reportit-data"
 # The public URL people actually use (Firebase Hosting proxies to Cloud
 # Run). Google's OAuth callback must land here, not on the raw *.run.app
 # URL, or signed-in users end up stuck on the Cloud Run domain.
-PUBLIC_URL="https://reportit-ai.web.app"
+# The brand is CatPhish and the public site is catphish.web.app. The Cloud Run
+# service, the secrets and the bucket below deliberately keep their original
+# "reportit" names: nobody sees them, and renaming them would mean recreating
+# every secret and migrating the database bucket for zero user-visible gain.
+#
+# Changing this value also changes _CANONICAL_HOST in app.py, so the old
+# domain starts 307-ing here automatically. Sign-in breaks unless
+# ${PUBLIC_URL}/auth/google/callback is an authorized redirect URI FIRST.
+PUBLIC_URL="https://catphish.web.app"
 
 echo "==> Using project: $PROJECT_ID"
 gcloud config set project "$PROJECT_ID" >/dev/null

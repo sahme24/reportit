@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "reportit-ai",
+    "site": "catphish",
     "public": "public",
     "rewrites": [
       {

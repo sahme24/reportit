@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReportIT.ai</title>
+<title>CatPhish</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -51,7 +51,7 @@
   </div>
 
   <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-head"><span class="panel-title">Community impact across ReportIT.ai</span></div>
+    <div class="panel-head"><span class="panel-title">Community impact across CatPhish</span></div>
     <div class="verdict-split">
       <span class="split-item">Messages investigated <b id="iScans">-</b></span>
       <span class="split-item">Threats detected <b id="iThreats">-</b></span>
@@ -78,7 +78,7 @@
 
 <script src="/static/shared.js"></script>
 <script>
-const esc = ReportIT.esc;
+const esc = CatPhish.esc;
 const chip = v => v === "MALICIOUS" ? "bad" : v === "SUSPICIOUS" ? "warn" : "ok";
 const kindIcon = k => k === "sms" ? "SMS" : "Email";
 
@@ -90,7 +90,7 @@ const fmtTime = iso => {
   return d.toDateString() === new Date().toDateString() ? t : `${t} tomorrow`;
 };
 
-ReportIT.topbar("/dashboard").then(async user => {
+CatPhish.topbar("/dashboard").then(async user => {
   if (!user) { location.href = "/login?next=/dashboard"; return; }
 
   const s = await (await fetch("/api/my/stats")).json();

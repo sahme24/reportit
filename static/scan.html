@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReportIT.ai</title>
+<title>CatPhish</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -534,7 +534,7 @@ Content-Type: multipart/alternative</pre>
 let currentCase = null;
 let kind = "email";
 const $ = id => document.getElementById(id);
-const esc = ReportIT.esc;
+const esc = CatPhish.esc;
 
 const PLACEHOLDERS = {
   email: `Paste the raw email source here, full headers plus body.
@@ -561,7 +561,7 @@ function setKind(k){
   $("error").textContent = "";
 }
 
-ReportIT.topbar("/scan").then(user => {
+CatPhish.topbar("/scan").then(user => {
   if (!user) location.href = "/login?next=/scan";
 });
 
@@ -1076,9 +1076,9 @@ function download(content, filename, type){
   URL.revokeObjectURL(a.href);
 }
 $("exportBtn").onclick = () => currentCase &&
-  download(currentCase.report_markdown, `reportit-case-${currentCase.case_id}.md`, "text/markdown");
+  download(currentCase.report_markdown, `catphish-case-${currentCase.case_id}.md`, "text/markdown");
 $("exportJson").onclick = () => currentCase &&
-  download(JSON.stringify(currentCase, null, 2), `reportit-case-${currentCase.case_id}.json`, "application/json");
+  download(JSON.stringify(currentCase, null, 2), `catphish-case-${currentCase.case_id}.json`, "application/json");
 
 $("newCase").onclick = () => {
   currentCase = null;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReportIT.ai</title>
+<title>CatPhish</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -40,7 +40,7 @@
 <div class="wrap page">
   <div class="auth-wrap">
     <div class="auth-title">
-      <h2>Welcome to ReportIT<span style="color:var(--primary)">.ai</span></h2>
+      <h2>Welcome to Cat<span style="color:var(--primary)">Phish</span></h2>
       <p>Sign in to scan messages and keep your case history.</p>
     </div>
     <div class="panel lift">
@@ -75,7 +75,7 @@
 
 <script src="/static/shared.js"></script>
 <script>
-ReportIT.topbar("/login").then(user => { if (user) location.href = "/scan"; });
+CatPhish.topbar("/login").then(user => { if (user) location.href = "/scan"; });
 
 const ERRORS = {
   not_configured: "",

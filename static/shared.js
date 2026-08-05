@@ -1,20 +1,26 @@
 /* Shared chrome: announcement bar, navbar, theme toggle, session helpers. */
 
-const ReportIT = {
+const CatPhish = {
   esc(s) {
     return (s ?? "").toString()
       .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
   },
 
+  /* A shield that peaks into two ears: the security read and the cat read in
+     one silhouette, which is the only way this survives at navbar size. The
+     cat is the one CATCHING the phish, not doing it -- worth keeping in mind
+     if this ever gets redrawn. */
   logo: `
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M13 1.5 L23 5.5 V12 C23 18.5 18.8 23.2 13 24.5 C7.2 23.2 3 18.5 3 12 V5.5 Z"
+      <path d="M4 8 L5.4 2.4 L9.8 5.6 H16.2 L20.6 2.4 L22 8 V12.2
+               C22 18.3 18.2 22.7 13 24.4 C7.8 22.7 4 18.3 4 12.2 Z"
             fill="var(--primary)" opacity="0.15"/>
-      <path d="M13 1.5 L23 5.5 V12 C23 18.5 18.8 23.2 13 24.5 C7.2 23.2 3 18.5 3 12 V5.5 Z"
-            stroke="var(--primary)" stroke-width="2" stroke-linejoin="round"/>
-      <text x="13" y="17.5" text-anchor="middle" font-family="Poppins, sans-serif"
-            font-weight="700" font-size="12" fill="var(--primary)">R</text>
+      <path d="M4 8 L5.4 2.4 L9.8 5.6 H16.2 L20.6 2.4 L22 8 V12.2
+               C22 18.3 18.2 22.7 13 24.4 C7.8 22.7 4 18.3 4 12.2 Z"
+            stroke="var(--primary)" stroke-width="1.9" stroke-linejoin="round"/>
+      <ellipse cx="10.2" cy="13.1" rx="1.15" ry="1.7" fill="var(--primary)"/>
+      <ellipse cx="15.8" cy="13.1" rx="1.15" ry="1.7" fill="var(--primary)"/>
     </svg>`,
 
   icon: {
@@ -59,9 +65,9 @@ const ReportIT = {
 
     const banner = localStorage.getItem("reportit-banner") === "off" ? "" : `
       <div class="announce">
-        New! Every scan now runs a built-in AI analysis and reads text
-        hidden inside images.
-        <button class="dismiss" aria-label="Dismiss" onclick="ReportIT.dismissBanner()">✕</button>
+        New! Every scan now opens the links in a sandbox and shows you
+        the page they lead to.
+        <button class="dismiss" aria-label="Dismiss" onclick="CatPhish.dismissBanner()">✕</button>
       </div>`;
 
     let links, right;
@@ -72,11 +78,14 @@ const ReportIT = {
         ${link("/history", "Case History")}`;
       right = `
         <span class="welcome">Welcome, <b>${this.esc(user.name)}</b></span>
-        <button class="btn outline pill" onclick="ReportIT.logout()">Sign out</button>`;
+        <button class="btn outline pill" onclick="CatPhish.logout()">Sign out</button>`;
     } else {
+      // These must match real section ids in index.html -- there is no
+      // section#why any more, and a nav link to a missing anchor just
+      // silently does nothing.
       links = `
         ${link("/#how", "How it works")}
-        ${link("/#why", "Why ReportIT")}
+        ${link("/#usage", "When to use it")}
         ${link("/#trust", "Privacy")}
         ${link("/#faq", "FAQ")}`;
       right = `
@@ -90,13 +99,16 @@ const ReportIT = {
         <div class="nav-inner">
           <a class="brand" href="/">
             ${this.logo}
-            <span class="brand-name">ReportIT<span class="tld">.ai</span></span>
+            <!-- "Phish" carries the accent colour: the eye lands on the
+                 security word, not the cat, which is what stops the name
+                 reading as a dating-scam tool. -->
+            <span class="brand-name">Cat<span class="tld">Phish</span></span>
           </a>
           <nav class="nav-links">${links}</nav>
           <div class="nav-right">
             ${right}
             <button class="theme-toggle" title="Toggle theme"
-                    onclick="ReportIT.theme.toggle()"></button>
+                    onclick="CatPhish.theme.toggle()"></button>
           </div>
         </div>
       </div>`;
@@ -106,4 +118,4 @@ const ReportIT = {
 };
 
 /* Apply saved theme before first paint to avoid a flash. */
-document.documentElement.dataset.theme = ReportIT.theme.get();
+document.documentElement.dataset.theme = CatPhish.theme.get();
