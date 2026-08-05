@@ -120,16 +120,29 @@ Every one of these completes the scan rather than failing it:
 
 ## Deployment note: Firebase Hosting
 
-`firebase.json` rewrites `**` to Cloud Run. Cloud Run itself supports
-WebSockets, but **Firebase Hosting's rewrite layer is not known to forward
-WebSocket upgrades** — so on `reportit-ai.web.app` the socket may fail while
-the same build works when hit directly on its Cloud Run URL.
+`firebase.json` rewrites `**` to Cloud Run. Cloud Run supports WebSockets;
+**Firebase Hosting's rewrite layer does not forward the upgrade.** This is
+confirmed, not suspected — the same request logs two different ways:
 
-This is why the HTTP fallback exists: if the upgrade is dropped, scanning
-still works, minus live progress and minus detonation. **Verify after
-deploying** — open the scanner, run a scan, and check whether the stage list
-animates or the panel shows *"live progress unavailable"*. If it's the
-latter, point the scanner at the Cloud Run domain directly.
+```
+"WebSocket /ws/scan" 403      # hit Cloud Run directly: upgrade handled
+"GET /ws/scan HTTP/1.1" 404   # same request via Firebase Hosting
+```
+
+Hosting strips the upgrade headers, so the request arrives as an ordinary
+GET and 404s. **Every visitor on `catphish.web.app` therefore takes the
+HTTP fallback**, and the WebSocket path only runs against the raw
+`*.run.app` URL.
+
+Because of that, detonation must never live only on the socket. Both
+endpoints call the same `_detonate_case()` in `app.py`, so the sandbox runs
+either way. The only thing the transport decides is whether progress
+*streams*: over the socket the stages tick live, and on the fallback the
+POST returns once with everything filled in.
+
+To get live progress on the public domain you'd have to bypass Hosting
+entirely — map the domain straight to Cloud Run — which is a DNS change,
+not a code one.
 
 ---
 

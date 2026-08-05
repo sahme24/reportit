@@ -1,18 +1,18 @@
-# 🛡️ ReportIT.ai
+# 🐱 CatPhish
 
 [![CI/CD](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml/badge.svg)](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml)
 
 **Phishing and smishing investigation for everyone, delivered as a hosted
 web app.** (Private repository. See License below.)
 
-Ever gotten a phishing email? Everyone has. ReportIT.ai reads it the way a
+Ever gotten a phishing email? Everyone has. CatPhish reads it the way a
 security analyst would: parsing headers, verifying authentication, hunting
 typosquats, querying threat intel, and tracing the attack chain from spoofed
 sender to landing page. (The analysis engine lives in the `threadline/`
 package. Every scan traces the thread of the attack.)
 
 Enterprises have SOC teams and commercial platforms for this. The average
-person has a spam folder. ReportIT.ai closes that gap: free to use, no
+person has a spam folder. CatPhish closes that gap: free to use, no
 setup, live on the web.
 
 ## Features
@@ -92,7 +92,7 @@ email address (they keep their history and admin flag).
 
 Scammers put the whole lure in a picture so text filters see nothing.
 With the [Tesseract](https://github.com/tesseract-ocr/tesseract) binary
-installed, ReportIT.ai reads attached and inline images and runs the hidden
+installed, CatPhish reads attached and inline images and runs the hidden
 text through the same URL, typosquat, urgency, and reputation checks:
 
 ```bash
@@ -157,7 +157,7 @@ ABUSEIPDB_API_KEY=...   # abuseipdb.com, free tier
 URLHAUS_API_KEY=...     # auth.abuse.ch, free
 ```
 
-No keys? ReportIT.ai still runs every offline heuristic plus RDAP domain-age
+No keys? CatPhish still runs every offline heuristic plus RDAP domain-age
 checks. Lookups fail soft, so a dead API never breaks a scan.
 
 ## Why users can trust it
@@ -291,10 +291,18 @@ its own — see "Auto-deploy on push" below to close that gap.
 Cloud Run's auto-generated URL (`reportit-476314376398.us-central1.run.app`)
 can't be renamed or shortened directly. [`firebase.json`](firebase.json) sets
 up Firebase Hosting as a free reverse proxy in front of it instead, giving
-you `https://reportit-ai.web.app` (or whatever site ID you pick, subject to
+you `https://catphish.web.app` (or whatever site ID you pick, subject to
 availability, since `web.app` subdomains are global) with the same backend
 and zero code changes, since `app.py` already builds all its URLs from
 whatever host actually served the request.
+
+> **Why the infrastructure still says `reportit`.** The project was called
+> ReportIT.ai before it was CatPhish. The Cloud Run service, the
+> `reportit-*` secrets, the storage bucket and the `REPORTIT_*` environment
+> variables kept their original names on purpose: none of them are visible
+> to users, and renaming them would mean recreating every secret and
+> migrating the database bucket to change nothing anyone can see. Only the
+> public domain and the interface were rebranded.
 
 **1. Add Firebase to the GCP project** (one-time, browser): go to
 [the Firebase console](https://console.firebase.google.com/), **Add
@@ -309,10 +317,10 @@ Cloud Run setup, so this is just a plan toggle, not a new account.
 
 ```bash
 firebase login
-firebase hosting:sites:create reportit-ai --project exalted-pattern-502023-i8
+firebase hosting:sites:create catphish --project exalted-pattern-502023-i8
 ```
 
-If `reportit-ai` is taken, pick another id and update the `"site"` value in
+If `catphish` is taken, pick another id and update the `"site"` value in
 `firebase.json` to match.
 
 **3. Deploy:**
@@ -325,7 +333,7 @@ Firebase prints the live URL when it's done.
 
 **4. Register the new callback URL** in the
 [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
-add `https://reportit-ai.web.app/auth/google/callback` alongside the
+add `https://catphish.web.app/auth/google/callback` alongside the
 existing ones (the old `run.app` URL keeps working too — nothing needs to
 be removed).
 
