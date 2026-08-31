@@ -1,77 +1,78 @@
-/* CatPhish design system — clean SaaS look.
-   Light = white + blue (default). Dark = deep navy variant of the same brand.
+/* CatPhish design system — warm, editorial, case-file look.
+   Light = paper + amber (default). Dark = charcoal variant of the same brand.
+   Deliberately NOT the blue/navy "generic security SaaS" palette.
    Chart colors are CVD-validated per theme; don't swap them casually. */
 
 :root, :root[data-theme="light"]{
-  --bg:#FFFFFF;
-  --bg-soft:#F6F9FD;
+  --bg:#FBF7F0;
+  --bg-soft:#F3ECDE;
   --panel:#FFFFFF;
-  --line:#E4EAF3;
-  --line-strong:#CBD6E6;
-  --ink:#152744;
-  --dim:#5A6B87;
-  --faint:#8B99B0;
+  --line:#E9DFC8;
+  --line-strong:#D8C9A3;
+  --ink:#241C10;
+  --dim:#6B5F49;
+  --faint:#9C8F72;
 
-  --primary:#2E7CF6;
-  --primary-hover:#1D6BE5;
+  --primary:#B5590C;
+  --primary-hover:#9A4A08;
   --primary-ink:#FFFFFF;
-  --primary-wash:#EAF2FE;
-  --purple:#7B3FF2;
-  --purple-hover:#6B2FE2;
-  --mint-bg:#D8F7EA;
-  --mint-ink:#0B7A57;
+  --primary-wash:#FBE9D3;
+  --purple:#7A3B33;
+  --purple-hover:#652E27;
+  --mint-bg:#DCE8D2;
+  --mint-ink:#33591F;
 
-  --red:#C13E29;
-  --amber:#AD741D;
-  --teal:#00876F;
-  --red-wash:#FBEDEA;
-  --amber-wash:#F8F1E3;
-  --teal-wash:#E2F4F0;
+  --red:#A32F2F;
+  --amber:#8A5A0C;
+  --teal:#276B5C;
+  --red-wash:#F7E4E0;
+  --amber-wash:#F3E6CC;
+  --teal-wash:#E1EEE8;
 
-  --chart-blue:#2E7CF6;
-  --chart-teal:#00876F;
+  --chart-blue:#B5590C;
+  --chart-teal:#276B5C;
 
-  --navy-1:#14264E;
-  --navy-2:#1D3E8A;
-  --shadow-sm:0 2px 8px rgba(21,39,68,0.06);
-  --shadow:0 10px 30px rgba(21,39,68,0.08);
-  --shadow-lg:0 18px 44px rgba(21,39,68,0.12);
+  --navy-1:#241C10;
+  --navy-2:#4A3A20;
+  --shadow-sm:0 2px 8px rgba(36,28,16,0.08);
+  --shadow:0 10px 30px rgba(36,28,16,0.10);
+  --shadow-lg:0 18px 44px rgba(36,28,16,0.16);
   --ease:cubic-bezier(0.16,1,0.3,1);
 }
 :root[data-theme="dark"]{
-  --bg:#090F1D;
-  --bg-soft:#0E1830;
-  --panel:#141F3A;
-  --line:#223256;
-  --line-strong:#31466F;
-  --ink:#EDF2FB;
-  --dim:#9FB0CC;
-  --faint:#66789B;
+  --bg:#171310;
+  --bg-soft:#1E1811;
+  --panel:#241D15;
+  --line:#3A2E1F;
+  --line-strong:#4E3F2A;
+  --ink:#F3EADA;
+  --dim:#C2B296;
+  --faint:#83745A;
 
-  --primary:#4C8DF8;
-  --primary-hover:#649DF9;
-  --primary-ink:#0A1730;
-  --primary-wash:rgba(76,141,248,0.14);
-  --purple:#9B6BFF;
-  --purple-hover:#AC82FF;
-  --mint-bg:rgba(11,158,110,0.18);
-  --mint-ink:#4ADFAE;
+  --primary:#E38A2E;
+  --primary-hover:#EE9C46;
+  --primary-ink:#1A1207;
+  --primary-wash:rgba(227,138,46,0.16);
+  --purple:#B97A6E;
+  --purple-hover:#C88E82;
+  --mint-bg:rgba(94,158,68,0.18);
+  --mint-ink:#9CD680;
 
-  --red:#E0563D;
-  --amber:#E8A33D;
-  --teal:#4FBFAE;
-  --red-wash:rgba(224,86,61,0.14);
-  --amber-wash:rgba(232,163,61,0.14);
-  --teal-wash:rgba(79,191,174,0.14);
+  --red:#D9705A;
+  --amber:#D9A94E;
+  --teal:#5FAE9A;
+  --red-wash:rgba(217,112,90,0.16);
+  --amber-wash:rgba(217,169,78,0.16);
+  --teal-wash:rgba(95,174,154,0.16);
 
-  --chart-blue:#3D82E8;
-  --chart-teal:#35A896;
+  --chart-blue:#E38A2E;
+  --chart-teal:#5FAE9A;
 
-  --navy-1:#0E1C3D;
-  --navy-2:#173068;
-  --shadow-sm:0 2px 10px rgba(0,0,0,0.28);
-  --shadow:0 10px 34px rgba(0,0,0,0.42);
-  --shadow-lg:0 22px 54px rgba(0,0,0,0.55);
+  --navy-1:#1A1207;
+  --navy-2:#3A2712;
+  --shadow-sm:0 2px 10px rgba(0,0,0,0.32);
+  --shadow:0 10px 34px rgba(0,0,0,0.46);
+  --shadow-lg:0 22px 54px rgba(0,0,0,0.58);
 }
 
 *{box-sizing:border-box;}
@@ -112,8 +113,9 @@ a:hover{text-decoration:underline;}
 
 /* ------------------------------------------------------------------ type */
 h1,h2,h3{
-  font-family:'Poppins',sans-serif;font-weight:600;line-height:1.18;margin:0;
-  color:var(--ink);letter-spacing:-0.018em;
+  font-family:'Fraunces',Georgia,serif;font-weight:600;line-height:1.14;margin:0;
+  color:var(--ink);letter-spacing:-0.01em;
+  font-optical-sizing:auto;
 }
 .microlabel{
   font-size:11px;font-weight:700;
@@ -149,7 +151,7 @@ h1,h2,h3{
 }
 .brand{display:flex;align-items:center;gap:9px;color:var(--ink);flex-shrink:0;}
 .brand:hover{text-decoration:none;}
-.brand-name{font-family:'Poppins',sans-serif;font-weight:700;font-size:19px;letter-spacing:-0.01em;}
+.brand-name{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:20px;letter-spacing:-0.01em;}
 .brand-name .tld{color:var(--primary);}
 .nav-links{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .nav-links a{
@@ -217,7 +219,7 @@ h1,h2,h3{
   padding:14px 18px;border-bottom:1px solid var(--line);
 }
 .panel-title{
-  font-family:'Poppins',sans-serif;font-size:13.5px;font-weight:600;
+  font-family:'Fraunces',Georgia,serif;font-size:13.5px;font-weight:600;
   color:var(--ink);
 }
 .panel-body{padding:18px;}

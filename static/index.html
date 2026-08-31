@@ -7,7 +7,7 @@
 <meta name="description" content="Paste a suspicious email. Get an instant, expert-level investigation. No guessing.">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
 <style>
   body { background: var(--bg); }
@@ -59,21 +59,47 @@
 
   .hero-right {
     background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 28px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    line-height: 1.8;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px 14px 14px 14px;
+    padding: 30px 28px 26px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.85;
     color: var(--dim);
-    max-height: 380px;
-    overflow-y: auto;
+    /* No max-height/overflow here. This card is a fixed piece of marketing
+       copy, so it should simply be as tall as its content -- capping it put
+       a scrollbar through the hero and cut off the risk score. Clipping also
+       ate the "CASE FILE" tab, which is deliberately positioned outside the
+       card's own box. */
+    box-shadow: var(--shadow-lg);
+    transform: rotate(1.2deg);
+    position: relative;
+  }
+
+  .hero-right::before {
+    content: 'CASE FILE';
+    position: absolute;
+    top: -13px;
+    left: 24px;
+    background: var(--primary);
+    color: var(--primary-ink);
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    padding: 4px 12px;
+    border-radius: 3px;
+    transform: rotate(-1.2deg);
   }
 
   .hero-right .header {
-    color: var(--primary);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
     font-weight: 600;
-    margin-bottom: 16px;
+    font-size: 15px;
+    margin: 6px 0 16px;
+    border-bottom: 1px dashed var(--line-strong);
+    padding-bottom: 12px;
   }
 
   .hero-right .line {
@@ -86,7 +112,7 @@
   }
 
   .hero-right .flag {
-    color: #d946ef;
+    color: var(--red);
   }
 
   .hero-right .success {
@@ -147,8 +173,8 @@
 
   /* Dark section: what you get */
   .dark-section {
-    background: #0a0f1e;
-    color: #f2f6ff;
+    background: #1A1207;
+    color: #F3EADA;
     padding: 100px 20px;
     margin-top: 60px;
   }
@@ -181,13 +207,13 @@
     font-size: 18px;
     font-weight: 600;
     margin: 0 0 12px 0;
-    color: #f2f6ff;
+    color: #F3EADA;
   }
 
   .feature-item p {
     font-size: 15px;
     line-height: 1.7;
-    color: #d1ddf0;
+    color: #C2B296;
     margin: 0;
   }
 
@@ -337,7 +363,7 @@
       <div class="line"><span class="flag">✗</span> <b>Sender IP:</b> Not Chase's network</div>
       <div class="line"><span class="flag">✗</span> <b>Domain:</b> chase-alert.com (not chase.com)</div>
       <div class="line"><span class="success">✓</span> <b>Link target:</b> Known phishing site</div>
-      <div class="line" style="margin-top: 16px;"><b>Verdict:</b> <span style="color: #dc2626; font-weight: 600;">MALICIOUS</span></div>
+      <div class="line" style="margin-top: 16px; display:flex; align-items:center; gap:10px;"><b>Verdict:</b> <span class="stamp bad">MALICIOUS</span></div>
       <div class="line"><b>Risk score:</b> 89/100</div>
     </div>
   </div>
