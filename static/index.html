@@ -72,7 +72,6 @@
        ate the "CASE FILE" tab, which is deliberately positioned outside the
        card's own box. */
     box-shadow: var(--shadow-lg);
-    transform: rotate(1.2deg);
     position: relative;
   }
 
@@ -89,7 +88,6 @@
     letter-spacing: 0.14em;
     padding: 4px 12px;
     border-radius: 3px;
-    transform: rotate(-1.2deg);
   }
 
   .hero-right .header {
@@ -230,9 +228,7 @@
   .usage-section {
     max-width: 1200px;
     margin: 100px auto 0;
-    /* Extra bottom padding: the staggered cards hang ~22px lower than the
-       grid box implies, so equal padding looks short underneath them. */
-    padding: 80px 20px 110px;
+    padding: 80px 20px 100px;
   }
 
   .usage-section h2 {
@@ -246,12 +242,9 @@
        text-wrap:balance in theme.css handles narrow viewports. */
   }
 
-  /* Pinned case cards, not a row of identical boxes. The hero already
-     establishes a tilted case-file card, so reusing that language here ties
-     the page together instead of falling back on three equal columns, which
-     is the single most recognisable template layout. The rotations are
-     deliberately uneven -- a uniform tilt reads as a mistake, an uneven one
-     reads as placed by hand. */
+  /* Level cards. They avoid reading as a stock three-column row through
+     the clipped filing-tab corner, the stronger border and the hover lift
+     -- not through rotation, which just looked broken. */
   .usage-examples {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -263,12 +256,6 @@
     .usage-examples {
       grid-template-columns: 1fr;
     }
-    /* Single column: the stagger has nothing to play against, so a tilted
-       stack just looks like a rendering fault. */
-    .usage-example:nth-child(1),
-    .usage-example:nth-child(2),
-    .usage-example:nth-child(3){transform:none;}
-    .usage-example:hover{transform:translateY(-4px);}
   }
 
   .usage-example {
@@ -281,13 +268,8 @@
     transition: transform 220ms cubic-bezier(.2,.7,.3,1),
                 box-shadow 220ms cubic-bezier(.2,.7,.3,1);
   }
-  .usage-example:nth-child(1){transform:rotate(-1.4deg);}
-  .usage-example:nth-child(2){transform:rotate(0.7deg) translateY(22px);}
-  .usage-example:nth-child(3){transform:rotate(-0.5deg) translateY(6px);}
-
-  /* Straightens and lifts, as though picked up off the board. */
   .usage-example:hover{
-    transform:rotate(0deg) translateY(-4px);
+    transform:translateY(-4px);
     box-shadow:var(--shadow-lg);
   }
 
