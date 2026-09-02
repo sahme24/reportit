@@ -95,7 +95,10 @@ body{
   transition:background-color 0.25s var(--ease), color 0.25s var(--ease);
 }
 :root[data-theme="dark"] body{
-  --bg-glow:radial-gradient(1100px 480px at 50% -120px, rgba(76,141,248,0.10), transparent 60%);
+  /* Amber, not the blue this was before the rebrand -- a cool glow behind
+     a warm charcoal page is what makes a dark theme look assembled from
+     two different designs. */
+  --bg-glow:radial-gradient(1100px 480px at 50% -120px, rgba(227,138,46,0.10), transparent 60%);
 }
 .wrap{max-width:1160px;margin:0 auto;padding:0 28px;}
 .page{padding:32px 0 72px;}
@@ -116,7 +119,23 @@ h1,h2,h3{
   font-family:'Fraunces',Georgia,serif;font-weight:600;line-height:1.14;margin:0;
   color:var(--ink);letter-spacing:-0.01em;
   font-optical-sizing:auto;
+  /* Distributes words evenly across lines instead of filling each one and
+     dumping the remainder alone on the last. Without it the hero reads
+     "...actually from / your bank." and the privacy heading strands the
+     word "data." by itself, which is the detail that makes a headline
+     look unconsidered. */
+  text-wrap:balance;
 }
+
+/* Paragraphs get `pretty` rather than `balance`: balance is capped at a
+   few lines and is meant for short display text, while pretty only guards
+   against the final-line orphan, which is the problem in body copy. */
+p{text-wrap:pretty;}
+
+/* Any figure the eye compares down a column -- risk scores, counters,
+   case numbers -- needs fixed-width digits, or the numerals jitter
+   sideways between rows and the column stops looking like a column. */
+.num,.score,.chip,td,th,.mono{font-variant-numeric:tabular-nums;}
 .microlabel{
   font-size:11px;font-weight:700;
   text-transform:uppercase;letter-spacing:0.12em;
@@ -130,7 +149,7 @@ h1,h2,h3{
   font-size:13.5px;text-align:center;
   padding:10px 44px;position:relative;
 }
-.announce a{color:#CFE4FF;font-weight:600;}
+.announce a{color:#FFE9CC;font-weight:600;}
 .announce .dismiss{
   position:absolute;right:14px;top:50%;transform:translateY(-50%);
   background:none;border:1.5px solid rgba(255,255,255,0.6);color:#fff;
@@ -143,7 +162,7 @@ h1,h2,h3{
 .navbar{
   background:var(--panel);
   border-bottom:1px solid var(--line);
-  box-shadow:0 2px 12px rgba(21,39,68,0.05);
+  box-shadow:0 2px 12px rgba(36,28,16,0.06);
 }
 .nav-inner{
   max-width:1160px;margin:0 auto;padding:14px 28px;

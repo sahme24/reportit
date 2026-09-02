@@ -19,3 +19,7 @@ Thumbs.db
 .claude/
 .firebase/
 firebase-debug.log
+
+# Third-party agent skills installed via `npx skills add`. Vendored
+# tooling, not project source -- reinstall rather than commit.
+.agents/

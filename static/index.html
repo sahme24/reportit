@@ -144,6 +144,15 @@
     margin: 0 0 20px 0;
   }
 
+  /* The left column holds only a heading while the right holds a long list,
+     which left a tall block of dead space. Sticking the heading keeps it
+     beside the text it labels as you scroll, so the whitespace reads as
+     deliberate rather than as a column someone forgot to fill. */
+  .section-two-col > div:first-child { position: sticky; top: 96px; }
+  @media (max-width: 900px) {
+    .section-two-col > div:first-child { position: static; }
+  }
+
   .section-two-col .description {
     color: var(--dim);
     font-size: 16px;
@@ -221,39 +230,75 @@
   .usage-section {
     max-width: 1200px;
     margin: 100px auto 0;
-    padding: 80px 20px;
+    /* Extra bottom padding: the staggered cards hang ~22px lower than the
+       grid box implies, so equal padding looks short underneath them. */
+    padding: 80px 20px 110px;
   }
 
   .usage-section h2 {
     text-align: center;
     font-size: clamp(28px, 4vw, 40px);
     font-weight: 700;
-    margin-bottom: 60px;
+    margin-bottom: 64px;
+    /* No max-width cap here. Capping it at 22ch forced "Built for the
+       moment you're not / sure." -- a two-line break with one word
+       stranded, which is worse than the single line it had before.
+       text-wrap:balance in theme.css handles narrow viewports. */
   }
 
+  /* Pinned case cards, not a row of identical boxes. The hero already
+     establishes a tilted case-file card, so reusing that language here ties
+     the page together instead of falling back on three equal columns, which
+     is the single most recognisable template layout. The rotations are
+     deliberately uneven -- a uniform tilt reads as a mistake, an uneven one
+     reads as placed by hand. */
   .usage-examples {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 30px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    align-items: start;
   }
 
   @media (max-width: 900px) {
     .usage-examples {
       grid-template-columns: 1fr;
     }
+    /* Single column: the stagger has nothing to play against, so a tilted
+       stack just looks like a rendering fault. */
+    .usage-example:nth-child(1),
+    .usage-example:nth-child(2),
+    .usage-example:nth-child(3){transform:none;}
+    .usage-example:hover{transform:translateY(-4px);}
   }
 
   .usage-example {
-    padding: 28px;
+    padding: 26px 24px 28px;
     background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    /* Clipped top-left corner echoes the hero card's filing-tab shape. */
+    border-radius: 3px 12px 12px 12px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 220ms cubic-bezier(.2,.7,.3,1),
+                box-shadow 220ms cubic-bezier(.2,.7,.3,1);
+  }
+  .usage-example:nth-child(1){transform:rotate(-1.4deg);}
+  .usage-example:nth-child(2){transform:rotate(0.7deg) translateY(22px);}
+  .usage-example:nth-child(3){transform:rotate(-0.5deg) translateY(6px);}
+
+  /* Straightens and lifts, as though picked up off the board. */
+  .usage-example:hover{
+    transform:rotate(0deg) translateY(-4px);
+    box-shadow:var(--shadow-lg);
   }
 
   .usage-example .scenario {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 17px;
     font-weight: 600;
     color: var(--ink);
     margin-bottom: 12px;
+    line-height: 1.35;
+    text-wrap: balance;
   }
 
   .usage-example .result {
