@@ -183,11 +183,18 @@
     margin-bottom: 4px;
   }
 
-  /* Dark section: what you get */
+  /* A tonal panel, not a hard dark band. Two bugs came from the old
+     hard-coded #1A1207: h1,h2,h3 in theme.css sets color:var(--ink)
+     explicitly, which beats the inherited light colour, so the heading
+     rendered near-black on near-black; and in dark mode the panel was
+     within a shade of the page background, so it stopped reading as a
+     section at all. Theme variables fix both at once and survive a
+     palette change. */
   .dark-section {
-    background: #1A1207;
-    color: #F3EADA;
-    padding: 100px 20px;
+    background: var(--bg-soft);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 96px 20px 104px;
     margin-top: 60px;
   }
 
@@ -201,6 +208,7 @@
     font-weight: 450;
     line-height: 1.2;
     margin: 0 0 50px 0;
+    color: var(--ink);
   }
 
   .feature-grid {
@@ -216,16 +224,16 @@
   }
 
   .feature-item h3 {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 500;
-    margin: 0 0 12px 0;
-    color: #F3EADA;
+    margin: 0 0 10px 0;
+    color: var(--ink);
   }
 
   .feature-item p {
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.7;
-    color: #C2B296;
+    color: var(--dim);
     margin: 0;
   }
 
