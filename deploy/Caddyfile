@@ -1,0 +1,28 @@
+# Caddy gets a Let's Encrypt certificate automatically for this domain and
+# renews it, provided ports 80 and 443 are reachable from the internet.
+# That last part is the whole difficulty on Oracle Cloud -- see README.md.
+
+{$CATPHISH_DOMAIN} {
+	reverse_proxy app:8080 {
+		# app.py builds the OAuth redirect_uri from the incoming request, and
+		# uvicorn runs with --proxy-headers. Without these the app sees plain
+		# http, generates an http:// redirect_uri, and Google rejects it as
+		# not matching the registered https:// one. Caddy sets X-Forwarded-*
+		# by default; they're spelled out here so it's obvious why they
+		# matter if anyone trims this file later.
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+
+	encode zstd gzip
+
+	# Caddy proxies WebSocket upgrades natively, with no extra config, which
+	# is why live scan progress works here and never did behind Firebase
+	# Hosting.
+	log {
+		output file /data/access.log {
+			roll_size 10MB
+			roll_keep 3
+		}
+	}
+}

@@ -1,0 +1,58 @@
+# CatPhish on a plain VM (written for Oracle Cloud Always Free).
+#
+# Two containers: the app, and Caddy in front of it to terminate TLS.
+# Caddy is here because Let's Encrypt won't issue a certificate for a bare
+# IP address, and Google OAuth won't redirect to a plain-http callback --
+# so "just run the container on port 80" doesn't actually work for this app.
+#
+#   docker compose up -d --build
+#
+# Expects ../.env to exist with the secrets (see deploy/README.md).
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      # Overrides anything in .env: the database must land on the named
+      # volume below, not inside the container's own filesystem, or every
+      # rebuild silently wipes the users table.
+      THREADLINE_DB: /data/threadline.db
+      PORT: "8080"
+    volumes:
+      - catphish-data:/data
+    # Deliberately NOT published to the host. Only Caddy should be able to
+    # reach the app, so the plain-http port can't be hit directly on the
+    # VM's public IP, bypassing TLS.
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    # env_file, not `environment: CATPHISH_DOMAIN: ${CATPHISH_DOMAIN}`.
+    # Compose's ${...} substitution reads a .env sitting next to THIS file,
+    # so it would resolve to an empty string against a .env in the repo
+    # root -- Caddy would then try to serve a blank hostname and fail to get
+    # a certificate. Loading the file into the container's environment lets
+    # the Caddyfile's own {$CATPHISH_DOMAIN} read it directly.
+    env_file:
+      - ../.env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data      # issued certificates -- losing this re-requests
+      - caddy-config:/config  # them, and Let's Encrypt rate-limits that
+    depends_on:
+      - app
+
+volumes:
+  catphish-data:
+  caddy-data:
+  caddy-config:
