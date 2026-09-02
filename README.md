@@ -11,7 +11,7 @@ short_description: Paste a suspicious email, get an analyst-grade verdict
 
 # 🐱 CatPhish
 
-[![CI/CD](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml/badge.svg)](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/sahme24/reportit/actions/workflows/ci.yml/badge.svg)](https://github.com/sahme24/reportit/actions/workflows/ci.yml)
 
 <!-- The YAML block above configures the Hugging Face Space this deploys to
      (GitHub renders it as a small table, Hugging Face reads it as config).
@@ -19,7 +19,7 @@ short_description: Paste a suspicious email, get an analyst-grade verdict
 
 
 **Phishing and smishing investigation for everyone, delivered as a hosted
-web app.** (Private repository. See License below.)
+web app.** Open source, MIT licensed.
 
 Ever gotten a phishing email? Everyone has. CatPhish reads it the way a
 security analyst would: parsing headers, verifying authentication, hunting
@@ -64,7 +64,7 @@ setup, live on the web.
 ## Quick start
 
 ```bash
-git clone https://github.com/YOURUSERNAME/reportit
+git clone https://github.com/sahme24/reportit
 cd reportit
 pip install -r requirements.txt
 cp .env.example .env   # then add your Google OAuth credentials (below)
@@ -279,6 +279,8 @@ triggers it. Never commit real phishing payloads, live malicious URLs
 
 ## License
 
-**Private, closed-source project.** Not licensed for redistribution or
-self-hosting. (The [MIT](LICENSE) file is retained in case the project is
-re-opened later.)
+[MIT](LICENSE). Open source — fork it, run it, learn from it.
+
+If you deploy your own instance, use your own API keys and your own Google
+OAuth client. The hosted instance's keys are rate-limited per user and
+aren't shared.
