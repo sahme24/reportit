@@ -1,6 +1,22 @@
+---
+title: CatPhish
+emoji: 🐱
+colorFrom: yellow
+colorTo: red
+sdk: docker
+app_port: 8080
+pinned: false
+short_description: Paste a suspicious email, get an analyst-grade verdict
+---
+
 # 🐱 CatPhish
 
 [![CI/CD](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml/badge.svg)](https://github.com/YOURUSERNAME/reportit/actions/workflows/ci.yml)
+
+<!-- The YAML block above configures the Hugging Face Space this deploys to
+     (GitHub renders it as a small table, Hugging Face reads it as config).
+     app_port must match the port the Dockerfile's uvicorn listens on. -->
+
 
 **Phishing and smishing investigation for everyone, delivered as a hosted
 web app.** (Private repository. See License below.)
@@ -225,31 +241,35 @@ docker run -p 8080:8080 -v reportit-data:/data --env-file .env reportit
 
 ## Deploy
 
-CatPhish runs as a normal Docker container behind a reverse proxy, on any
-machine with a public IP. **[`deploy/README.md`](deploy/README.md) is the
-full walkthrough** -- written against Oracle Cloud's Always Free tier, but
-nothing in it is Oracle-specific except opening the cloud-side firewall.
+Live on **Hugging Face Spaces** — see
+[`deploy/huggingface.md`](deploy/huggingface.md). The config is the YAML
+block at the top of this file; secrets go in the Space's settings, never in
+the repo.
 
 ```bash
-ssh you@your-vm
-git clone https://github.com/sahme24/reportit.git catphish && cd catphish
-sudo bash deploy/bootstrap.sh          # docker + instance firewall
-# create .env, point DNS at the VM  (deploy/README.md steps 3-5)
-cd deploy && docker compose --env-file ../.env up -d --build
+git remote add space https://huggingface.co/spaces/<you>/catphish
+git push space main
 ```
 
-Caddy terminates TLS and gets its certificate from Let's Encrypt
-automatically. Back the database up with
-[`deploy/backup.sh`](deploy/backup.sh) on a cron -- on your own VM, nothing
-else will.
+Spaces was chosen because it needs no credit card and still has enough
+memory to run headless Chromium, so link detonation survives. The costs are
+that storage resets on every rebuild (the database starts empty; sign-in is
+Google OAuth so nothing irreplaceable is lost) and the Space sleeps after
+48h idle.
+
+**On your own VM instead:** [`deploy/README.md`](deploy/README.md) covers
+Docker Compose plus Caddy on any machine with a public IP — persistent
+storage, no sleeping, and TLS via Let's Encrypt automatically. Back the
+database up with [`deploy/backup.sh`](deploy/backup.sh) on a cron; on a VM
+nothing else will.
 
 > **This used to deploy to Google Cloud Run**, fronted by Firebase Hosting,
-> via a `deploy.sh` and a `firebase.json` that are no longer in the tree
-> (`git log -- deploy.sh` if you want them back). Two things drove the
-> move: Cloud Run requires an active billing account, and Firebase
-> Hosting's rewrite layer silently drops WebSocket upgrades, so live scan
-> progress never worked on the public domain. Both are fixed by running
-> the container yourself -- Caddy proxies WebSockets natively.
+> via a `deploy.sh`, `firebase.json` and `cloudbuild.yaml` no longer in the
+> tree (`git log -- deploy.sh` to recover them). Two things drove the move:
+> Cloud Run requires an active billing account, and Firebase Hosting's
+> rewrite layer silently drops WebSocket upgrades, so live scan progress
+> never worked on the public domain. Both go away by hosting the container
+> anywhere else.
 
 ## Contributing (collaborators)
 
