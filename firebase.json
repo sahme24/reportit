@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "site": "catphish",
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [
+      {
+        "regex": "^/(?P<rest>.*)$",
+        "destination": "https://catphish-22592.northcentralus.cloudapp.azure.com/:rest",
+        "type": 302
+      }
+    ]
+  }
+}
