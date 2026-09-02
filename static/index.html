@@ -7,7 +7,7 @@
 <meta name="description" content="Paste a suspicious email. Get an instant, expert-level investigation. No guessing.">
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/theme.css">
 <style>
   body { background: var(--bg); }
@@ -36,9 +36,12 @@
   }
 
   .hero-left h1 {
-    font-size: clamp(36px, 6vw, 54px);
-    font-weight: 700;
-    line-height: 1.1;
+    /* Bigger than before but lighter: Replit runs 64px at weight 400.
+       Scale carries the emphasis, not stroke width. */
+    font-size: clamp(38px, 6.4vw, 62px);
+    font-weight: 400;
+    letter-spacing: -0.045em;
+    line-height: 1.06;
     margin: 0 0 20px 0;
     color: var(--ink);
   }
@@ -82,17 +85,19 @@
     left: 24px;
     background: var(--primary);
     color: var(--primary-ink);
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: var(--font-display);
     font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
+    /* Micro-labels need more weight than body text to hold up at 10px,
+       but 700 shouted next to 400-weight headings. */
+    font-weight: 600;
+    letter-spacing: 0.12em;
     padding: 4px 12px;
     border-radius: 3px;
   }
 
   .hero-right .header {
     color: var(--ink);
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: var(--font-display);
     font-weight: 600;
     font-size: 15px;
     margin: 6px 0 16px;
@@ -137,7 +142,7 @@
 
   .section-two-col h2 {
     font-size: clamp(28px, 4vw, 40px);
-    font-weight: 700;
+    font-weight: 450;
     line-height: 1.2;
     margin: 0 0 20px 0;
   }
@@ -193,7 +198,7 @@
 
   .dark-section h2 {
     font-size: clamp(28px, 4vw, 40px);
-    font-weight: 700;
+    font-weight: 450;
     line-height: 1.2;
     margin: 0 0 50px 0;
   }
@@ -212,7 +217,7 @@
 
   .feature-item h3 {
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 500;
     margin: 0 0 12px 0;
     color: #F3EADA;
   }
@@ -234,7 +239,7 @@
   .usage-section h2 {
     text-align: center;
     font-size: clamp(28px, 4vw, 40px);
-    font-weight: 700;
+    font-weight: 450;
     margin-bottom: 64px;
     /* No max-width cap here. Capping it at 22ch forced "Built for the
        moment you're not / sure." -- a two-line break with one word
@@ -274,9 +279,9 @@
   }
 
   .usage-example .scenario {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: var(--font-display);
     font-size: 17px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--ink);
     margin-bottom: 12px;
     line-height: 1.35;
@@ -299,7 +304,7 @@
 
   .bottom-cta h2 {
     font-size: clamp(28px, 4vw, 40px);
-    font-weight: 700;
+    font-weight: 450;
     margin-bottom: 12px;
   }
 
@@ -318,7 +323,7 @@
 
   .faq-section h2 {
     font-size: clamp(24px, 3vw, 32px);
-    font-weight: 700;
+    font-weight: 450;
     margin-bottom: 40px;
   }
 
@@ -334,7 +339,7 @@
   }
 
   .faq-q {
-    font-weight: 600;
+    font-weight: 500;
     font-size: 15px;
     color: var(--ink);
     margin-bottom: 8px;

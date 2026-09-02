@@ -4,14 +4,14 @@
    Chart colors are CVD-validated per theme; don't swap them casually. */
 
 :root, :root[data-theme="light"]{
-  --bg:#FBF7F0;
-  --bg-soft:#F3ECDE;
+  --bg:#F6F5F3;
+  --bg-soft:#EFEDEA;
   --panel:#FFFFFF;
-  --line:#E9DFC8;
-  --line-strong:#D8C9A3;
-  --ink:#241C10;
-  --dim:#6B5F49;
-  --faint:#9C8F72;
+  --line:#E4E1DC;
+  --line-strong:#D2CEC7;
+  --ink:#1A1B1D;
+  --dim:#63625F;
+  --faint:#918F8A;
 
   --primary:#B5590C;
   --primary-hover:#9A4A08;
@@ -38,16 +38,30 @@
   --shadow:0 10px 30px rgba(36,28,16,0.10);
   --shadow-lg:0 18px 44px rgba(36,28,16,0.16);
   --ease:cubic-bezier(0.16,1,0.3,1);
+
+  /* Geist stands in for Replit's proprietary ABC Diatype: the same
+     neo-grotesque proportions, and it's Vercel's face, so it matches the
+     other reference too. Display text is set at 400-500, never bold --
+     the weight is what separates this look from a generic marketing page. */
+  --font-display:'Geist','Inter',system-ui,sans-serif;
+
+  /* Radii: 6px on controls, 10px on containers. Replit sits at 6px for
+     buttons; anything pill-shaped reads as a different, softer brand. */
+  --r-control:6px;
+  --r-panel:10px;
 }
 :root[data-theme="dark"]{
-  --bg:#171310;
-  --bg-soft:#1E1811;
-  --panel:#241D15;
-  --line:#3A2E1F;
-  --line-strong:#4E3F2A;
-  --ink:#F3EADA;
-  --dim:#C2B296;
-  --faint:#83745A;
+  /* Neutral charcoal, matching the light palette's move off cream. A brown
+     dark mode beside a near-neutral light mode is two different themes
+     wearing the same accent. */
+  --bg:#161616;
+  --bg-soft:#1D1D1C;
+  --panel:#212121;
+  --line:#302F2E;
+  --line-strong:#413F3D;
+  --ink:#F2F1EF;
+  --dim:#B4B2AE;
+  --faint:#7E7C78;
 
   --primary:#E38A2E;
   --primary-hover:#EE9C46;
@@ -89,16 +103,16 @@ body{
   -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
   min-height:100vh;
-  font-size:15px;
-  line-height:1.6;
-  letter-spacing:-0.003em;
+  font-size:14px;
+  line-height:1.62;
+  letter-spacing:-0.006em;
   transition:background-color 0.25s var(--ease), color 0.25s var(--ease);
 }
 :root[data-theme="dark"] body{
   /* Amber, not the blue this was before the rebrand -- a cool glow behind
      a warm charcoal page is what makes a dark theme look assembled from
      two different designs. */
-  --bg-glow:radial-gradient(1100px 480px at 50% -120px, rgba(227,138,46,0.10), transparent 60%);
+  --bg-glow:radial-gradient(1100px 480px at 50% -120px, rgba(227,138,46,0.07), transparent 60%);
 }
 .wrap{max-width:1160px;margin:0 auto;padding:0 28px;}
 .page{padding:32px 0 72px;}
@@ -116,8 +130,12 @@ a:hover{text-decoration:underline;}
 
 /* ------------------------------------------------------------------ type */
 h1,h2,h3{
-  font-family:'Fraunces',Georgia,serif;font-weight:600;line-height:1.14;margin:0;
-  color:var(--ink);letter-spacing:-0.01em;
+  font-family:var(--font-display);font-weight:450;line-height:1.1;margin:0;
+  color:var(--ink);
+  /* -0.04em at display sizes. Replit runs -0.06em on a 64px headline;
+     that's too tight for anything smaller, so this is the compromise that
+     holds up across h1 through h3 without a per-size override. */
+  letter-spacing:-0.035em;
   font-optical-sizing:auto;
   /* Distributes words evenly across lines instead of filling each one and
      dumping the remainder alone on the last. Without it the hero reads
@@ -144,19 +162,23 @@ p{text-wrap:pretty;}
 .mono{font-family:'IBM Plex Mono',monospace;font-feature-settings:"tnum" 1;}
 
 /* ------------------------------------------------------- announcement bar */
+/* A tinted strip rather than a full-saturation orange bar. At this weight
+   the rest of the page is deliberately quiet, and a solid accent band was
+   the single loudest element on screen -- it read as a cookie banner. */
 .announce{
-  background:var(--primary);color:#fff;
-  font-size:13.5px;text-align:center;
-  padding:10px 44px;position:relative;
+  background:var(--bg-soft);color:var(--dim);
+  border-bottom:1px solid var(--line);
+  font-size:12.5px;text-align:center;
+  padding:9px 44px;position:relative;
 }
-.announce a{color:#FFE9CC;font-weight:600;}
+.announce a{color:var(--primary);font-weight:500;}
 .announce .dismiss{
   position:absolute;right:14px;top:50%;transform:translateY(-50%);
-  background:none;border:1.5px solid rgba(255,255,255,0.6);color:#fff;
+  background:none;border:1px solid var(--line-strong);color:var(--faint);
   width:22px;height:22px;border-radius:50%;cursor:pointer;
   font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;
 }
-.announce .dismiss:hover{border-color:#fff;}
+.announce .dismiss:hover{border-color:var(--dim);color:var(--dim);}
 
 /* ---------------------------------------------------------------- navbar */
 .navbar{
@@ -170,12 +192,12 @@ p{text-wrap:pretty;}
 }
 .brand{display:flex;align-items:center;gap:9px;color:var(--ink);flex-shrink:0;}
 .brand:hover{text-decoration:none;}
-.brand-name{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:20px;letter-spacing:-0.01em;}
+.brand-name{font-family:var(--font-display);font-weight:550;font-size:19px;letter-spacing:-0.03em;}
 .brand-name .tld{color:var(--primary);}
 .nav-links{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .nav-links a{
-  font-size:14.5px;font-weight:600;color:var(--ink);
-  padding:8px 13px;border-radius:8px;position:relative;
+  font-size:13.5px;font-weight:450;color:var(--dim);
+  padding:7px 11px;border-radius:var(--r-control);position:relative;
   transition:color 0.15s var(--ease), background-color 0.15s var(--ease);
 }
 .nav-links a:hover{color:var(--primary);text-decoration:none;}
@@ -192,8 +214,8 @@ p{text-wrap:pretty;}
 
 /* --------------------------------------------------------------- buttons */
 .btn{
-  font-family:'Inter',sans-serif;font-size:14px;font-weight:600;
-  padding:10px 20px;border-radius:8px;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:13.5px;font-weight:500;
+  padding:9px 16px;border-radius:var(--r-control);cursor:pointer;
   border:1px solid var(--line-strong);background:var(--panel);color:var(--ink);
   transition:border-color 0.18s var(--ease), color 0.18s var(--ease),
              background-color 0.18s var(--ease), transform 0.15s var(--ease),
@@ -238,7 +260,7 @@ p{text-wrap:pretty;}
   padding:14px 18px;border-bottom:1px solid var(--line);
 }
 .panel-title{
-  font-family:'Fraunces',Georgia,serif;font-size:13.5px;font-weight:600;
+  font-family:var(--font-display);font-size:13.5px;font-weight:600;
   color:var(--ink);
 }
 .panel-body{padding:18px;}
