@@ -12,12 +12,21 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # `pip install playwright` only installs the Python bindings -- the browser
-# itself is a separate download, and without it every sandbox detonation fails
-# at launch. --with-deps pulls the shared libraries headless Chromium needs on
-# a slim image. This adds roughly 400 MB; drop both lines (and set
-# REPORTIT_SANDBOX=off) if you'd rather ship a small image without link
-# detonation.
-RUN playwright install --with-deps chromium
+# itself is a separate download, and without it every sandbox detonation
+# fails at launch. --with-deps pulls the shared libraries headless Chromium
+# needs on a slim image.
+#
+# It costs roughly 400 MB and several minutes of build time, which is wasted
+# on a host that can't run it anyway: Chromium needs about a gigabyte of RAM
+# to start, so on a 512 MB free tier the browser would only ever OOM. Build
+# with --build-arg INSTALL_BROWSER=false there (and set REPORTIT_SANDBOX=off)
+# for a small, fast image without link detonation.
+ARG INSTALL_BROWSER=true
+RUN if [ "$INSTALL_BROWSER" = "true" ]; then \
+        playwright install --with-deps chromium; \
+    else \
+        echo "Skipping Chromium: this image cannot detonate links."; \
+    fi
 
 COPY . .
 

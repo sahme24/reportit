@@ -1,0 +1,53 @@
+# Render Blueprint. With this in the repo root, Render's "New > Blueprint"
+# reads it and configures the service, instead of you filling in a form.
+#
+# Secrets are deliberately NOT here -- this file is public. Anything marked
+# `sync: false` is prompted for once at create time and stored by Render.
+
+services:
+  - type: web
+    name: catphish
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Render's free instance has 512 MB of RAM. Headless Chromium needs
+    # roughly a gigabyte before it will start, so building it in would add
+    # 400 MB and several minutes to every deploy for a feature that could
+    # only ever OOM here. Skipped at build time, and disabled at runtime
+    # below, so the app reports the sandbox as unavailable instead of
+    # failing mid-scan.
+    dockerBuildArgs:
+      INSTALL_BROWSER: false
+
+    # Free services sleep after 15 minutes idle and take 30-60s to wake.
+    # The keepalive workflow in .github/workflows/ pings this path often
+    # enough to prevent that; it needs no auth and touches no database, so
+    # it is safe to hit from anywhere.
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: REPORTIT_SANDBOX
+        value: "off"
+
+      # Prompted once when the Blueprint is created, then stored by Render.
+      # Set OAUTH_REDIRECT_URL to https://<service>.onrender.com/auth/google/callback
+      # once Render has told you the hostname -- it is both the OAuth
+      # callback and the source of _CANONICAL_HOST in app.py, so a wrong
+      # value sends every request into a redirect loop.
+      - key: OAUTH_REDIRECT_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VT_API_KEY
+        sync: false
+      - key: ABUSEIPDB_API_KEY
+        sync: false
+      - key: URLHAUS_API_KEY
+        sync: false

@@ -241,35 +241,32 @@ docker run -p 8080:8080 -v reportit-data:/data --env-file .env reportit
 
 ## Deploy
 
-Live on **Hugging Face Spaces** — see
-[`deploy/huggingface.md`](deploy/huggingface.md). The config is the YAML
-block at the top of this file; secrets go in the Space's settings, never in
-the repo.
+Live on **Render** — see [`deploy/render.md`](deploy/render.md).
+[`render.yaml`](render.yaml) configures the service, so Render reads it
+instead of you filling in a form. Deploys happen on push to `main`.
 
-```bash
-git remote add space https://huggingface.co/spaces/<you>/catphish
-git push space main
-```
+Render was chosen because it's the only free option with no credit card and
+no verification step that can fail. The cost is 512 MB of RAM: **link
+detonation is off there**, since headless Chromium needs about a gigabyte to
+start. Every other check still runs. The database also resets on redeploy
+(no persistent disk on free instances); sign-in is Google OAuth, so users
+just sign in again.
 
-Spaces was chosen because it needs no credit card and still has enough
-memory to run headless Chromium, so link detonation survives. The costs are
-that storage resets on every rebuild (the database starts empty; sign-in is
-Google OAuth so nothing irreplaceable is lost) and the Space sleeps after
-48h idle.
+Free instances sleep after 15 minutes idle, so
+[`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml) pings
+`/healthz` every 10 minutes to keep the instance resident.
 
-**On your own VM instead:** [`deploy/README.md`](deploy/README.md) covers
-Docker Compose plus Caddy on any machine with a public IP — persistent
-storage, no sleeping, and TLS via Let's Encrypt automatically. Back the
-database up with [`deploy/backup.sh`](deploy/backup.sh) on a cron; on a VM
-nothing else will.
+**With more memory**, link detonation works — it's verified, it just needs
+a gigabyte. [`deploy/README.md`](deploy/README.md) covers a VM deployment
+with Docker Compose and Caddy: persistent storage, no sleeping, and the
+sandbox running. Build with `--build-arg INSTALL_BROWSER=true` and drop
+`REPORTIT_SANDBOX=off`. Nothing in the application code is host-specific.
 
 > **This used to deploy to Google Cloud Run**, fronted by Firebase Hosting,
 > via a `deploy.sh`, `firebase.json` and `cloudbuild.yaml` no longer in the
-> tree (`git log -- deploy.sh` to recover them). Two things drove the move:
-> Cloud Run requires an active billing account, and Firebase Hosting's
-> rewrite layer silently drops WebSocket upgrades, so live scan progress
-> never worked on the public domain. Both go away by hosting the container
-> anywhere else.
+> tree (`git log -- deploy.sh` to recover them). Cloud Run requires an
+> active billing account. Firebase Hosting also silently dropped WebSocket
+> upgrades, so live scan progress never worked on that domain.
 
 ## Contributing (collaborators)
 

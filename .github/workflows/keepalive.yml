@@ -1,0 +1,52 @@
+name: Keep the free instance awake
+
+# Render's free tier sleeps a service after 15 minutes with no traffic, and
+# waking it takes 30-60 seconds -- long enough that anyone opening the link
+# cold assumes the site is broken. Pinging it more often than that keeps it
+# resident. 750 free instance-hours a month covers a ~730-hour month, so
+# staying up around the clock still fits the quota.
+#
+# This runs on GitHub rather than an uptime service so there's no extra
+# account to sign up for. Two caveats worth knowing:
+#   * cron here is best-effort and often runs minutes late under load, hence
+#     the 10-minute interval rather than 14.
+#   * GitHub disables scheduled workflows in repos with no commits for 60
+#     days. If the site starts sleeping again, check whether this was
+#     silently switched off before debugging anything else.
+#
+# Set the repository variable SITE_URL (Settings > Secrets and variables >
+# Actions > Variables) to the deployed origin, e.g.
+# https://catphish.onrender.com
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:        # so you can trigger it by hand to test
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /healthz
+        run: |
+          URL="${{ vars.SITE_URL }}"
+          if [ -z "$URL" ]; then
+            echo "SITE_URL is not set; nothing to ping. See this file's header."
+            exit 0
+          fi
+
+          # Three attempts before calling it a failure. A single miss is
+          # usually the instance waking up, not an outage, and alerting on
+          # that would train you to ignore this workflow.
+          for attempt in 1 2 3; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$URL/healthz" || echo 000)"
+            if [ "$code" = "200" ]; then
+              echo "attempt $attempt: $code -- awake"
+              exit 0
+            fi
+            echo "attempt $attempt: $code -- retrying in 30s"
+            sleep 30
+          done
+
+          echo "::error::$URL/healthz did not return 200 after 3 attempts."
+          exit 1
