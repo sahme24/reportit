@@ -419,3 +419,31 @@ def test_expired_sessions_are_purged():
         row = conn.execute("SELECT 1 FROM sessions WHERE token = ?",
                            (token,)).fetchone()
     assert row is None
+
+
+def test_healthz_is_open_and_touches_nothing():
+    # Docker restarts the container when this check fails, so it must depend
+    # on nothing that can break independently of the process being alive: no
+    # session, no database, no outbound API. If it ever starts requiring
+    # auth or a DB read, a bad API key or a locked database would look like
+    # a dead app and trigger a restart loop mid-scan.
+    r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
+def test_healthz_is_exempt_from_the_canonical_host_redirect():
+    # The health check is called from inside the container as
+    # http://localhost:8080/healthz. Every other path 307s to the canonical
+    # domain, and if /healthz did too the probe would be testing DNS, TLS
+    # and the reverse proxy instead of the process, and would fail on a
+    # brand-new VM before the certificate exists.
+    original = app_module._CANONICAL_HOST
+    app_module._CANONICAL_HOST = "catphish.example.com"
+    try:
+        health = client.get("/healthz", follow_redirects=False)
+        other = client.get("/login", follow_redirects=False)
+    finally:
+        app_module._CANONICAL_HOST = original
+    assert health.status_code == 200
+    assert other.status_code == 307

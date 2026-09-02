@@ -1,4 +1,4 @@
-"""ReportIT.ai web app: landing, Google sign-in, scanner, history, dashboard.
+"""CatPhish web app: landing, Google sign-in, scanner, history, dashboard.
 
 Run:  uvicorn app:app --reload
 Then open http://127.0.0.1:8000
@@ -35,7 +35,7 @@ from threadline.sms import scan_sms
 
 load_dotenv()
 
-app = FastAPI(title="ReportIT.ai", version="0.4.0")
+app = FastAPI(title="CatPhish", version="0.5.0")
 STATIC = Path(__file__).parent / "static"
 SAMPLES = Path(__file__).parent / "samples"
 logger = logging.getLogger(__name__)
@@ -43,9 +43,9 @@ logger = logging.getLogger(__name__)
 db.init_db()
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
-# The one public domain this app should ever be used from (Firebase Hosting
-# proxies to Cloud Run). Derived from OAUTH_REDIRECT_URL so it's unset -- and
-# this redirect a no-op -- in local dev.
+# The one public domain this app should ever be used from. Derived from
+# OAUTH_REDIRECT_URL so it's unset -- and this redirect a no-op -- in local
+# dev, and so it follows the domain automatically when the app moves.
 _CANONICAL_HOST = (
     urlparse(os.environ["OAUTH_REDIRECT_URL"]).hostname
     if os.environ.get("OAUTH_REDIRECT_URL") else None
@@ -55,12 +55,17 @@ _CANONICAL_HOST = (
 @app.middleware("http")
 async def canonicalize_host(request: Request, call_next):
     """Redirect any request that didn't arrive via the canonical domain
-    before it reaches a route. Without this, someone who lands on the raw
-    Cloud Run URL gets their OAuth state cookie scoped to *that* origin,
-    but Google then sends them back to the callback pinned at
+    before it reaches a route. Without this, someone who reaches the app
+    on a secondary hostname (its raw IP, an old domain) gets their OAuth
+    state scoped to *that* origin, but Google sends them back to the
+    callback pinned at
     OAUTH_REDIRECT_URL -- a different origin -- so the cookie never comes
     back and sign-in fails with a state mismatch."""
-    if _CANONICAL_HOST:
+    # The health check is exempt. It's called from inside the container as
+    # http://localhost:8080/healthz, so the canonical redirect would bounce
+    # it to the public domain and the check would end up testing DNS, TLS
+    # and the proxy instead of "is this process alive".
+    if _CANONICAL_HOST and request.url.path != "/healthz":
         host = (request.headers.get("x-forwarded-host")
                or request.url.hostname or "").split(",")[0].strip()
         if host and host != _CANONICAL_HOST:
@@ -85,8 +90,8 @@ _CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
 
 
 def _is_https(request: Request) -> bool:
-    # Behind Firebase Hosting / Cloud Run the TLS hop terminates upstream,
-    # so the original scheme arrives in X-Forwarded-Proto.
+    # TLS terminates at the reverse proxy (Caddy), not here, so the
+    # original scheme only survives in X-Forwarded-Proto.
     return request.headers.get(
         "x-forwarded-proto", request.url.scheme) == "https"
 
@@ -103,18 +108,20 @@ async def security_headers(request: Request, call_next):
     if _is_https(request):
         h.setdefault("Strict-Transport-Security",
                      "max-age=31536000; includeSubDomains")
-    # Per-user responses must never be cached: this app sits behind a CDN
-    # (Firebase Hosting/Fastly), and a cached /api/* response served to the
-    # wrong person would be a cross-user data leak. no-store closes that
-    # class of bug outright, for every cache between us and the browser.
+    # Per-user responses must never be cached. A cached /api/* response
+    # replayed to the wrong person is a cross-user data leak, and there is
+    # always at least one cache in the path (the reverse proxy, the
+    # browser, whatever a corporate network runs). no-store closes the
+    # whole class outright rather than trusting each one's defaults.
     if request.url.path.startswith(("/api/", "/auth/")):
         h["Cache-Control"] = "no-store"
     return response
 
 
-# Firebase Hosting's rewrite to Cloud Run strips every request cookie
-# except one literally named "__session" -- this MUST be that name, or
-# nobody can stay signed in when the app is accessed via Firebase Hosting.
+# Named for a Firebase Hosting constraint the app no longer runs under:
+# its rewrite layer dropped every request cookie except one literally
+# called "__session". Kept because the name is arbitrary and renaming it
+# would sign out every existing session to gain nothing.
 _COOKIE = "__session"
 
 _GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -152,9 +159,10 @@ def auth_google(request: Request) -> RedirectResponse:
     """Kick off the Google OAuth 2.0 authorization-code flow."""
     if not _google_configured():
         return RedirectResponse("/login?error=not_configured")
-    # Stored server-side, not in a cookie: Firebase Hosting strips every
-    # request cookie except "__session" before it reaches Cloud Run, so a
-    # second cookie here would never come back on the callback.
+    # Stored server-side rather than in a second cookie. That started as a
+    # workaround for Firebase Hosting dropping every cookie but "__session";
+    # it's kept because server-side state is the better design anyway -- it
+    # can be expired and audited, and it never rides on the client.
     state = db.create_oauth_state()
     params = urlencode({
         "client_id": os.environ["GOOGLE_CLIENT_ID"],
@@ -331,9 +339,9 @@ async def api_scan(req: ScanRequest, user: dict = Depends(require_user)) -> dict
             scan, req.raw, offline=req.offline, enrich=_email_enrichment)
 
     # Links get detonated here too, not only on the streaming endpoint.
-    # Firebase Hosting doesn't forward WebSocket upgrades, so for anyone on
-    # the public domain this is the only path that runs -- gating the sandbox
-    # on the transport would make it unreachable for real users.
+    # Anything gated on the WebSocket is unreachable to clients that can't
+    # upgrade -- which was every user back when Firebase Hosting fronted
+    # this -- so the sandbox must never depend on the transport.
     sandbox_results = await _detonate_case(case, req.offline)
 
     result = await asyncio.to_thread(
@@ -692,6 +700,18 @@ def api_stats() -> dict:
 
 _PAGES = {"/": "index.html", "/login": "auth.html", "/scan": "scan.html",
           "/history": "history.html", "/dashboard": "dashboard.html"}
+
+
+@app.get("/healthz")
+def health() -> dict:
+    """Liveness probe for self-hosted deployments.
+
+    Deliberately touches nothing: no database, no session, no outbound
+    call. It answers "did this process come up and is it still serving?"
+    and nothing else, so a slow threat-intel API or an expired API key can
+    never make Docker think the app is dead and restart it mid-scan.
+    """
+    return {"status": "ok"}
 
 
 @app.get("/")

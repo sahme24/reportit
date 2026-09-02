@@ -223,164 +223,33 @@ docker build -t reportit .
 docker run -p 8080:8080 -v reportit-data:/data --env-file .env reportit
 ```
 
-## Deploy to Google Cloud Run
+## Deploy
 
-The Dockerfile is Cloud Run ready (it listens on `$PORT`, defaulting to
-8080). Cloud Run's free tier covers 2 million requests a month and scales
-to zero when idle, so a low-traffic instance costs nothing beyond an
-attached billing account.
-
-**Prerequisites:** the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install),
-signed in (`gcloud auth login`) with a project selected (`gcloud config set
-project YOUR_PROJECT_ID`).
-
-**1. One-time storage setup.** Cloud Run containers are stateless: local
-disk resets on every cold start and isn't shared across instances. Mount a
-Cloud Storage bucket at `/data` so `threadline.db` survives redeploys:
+CatPhish runs as a normal Docker container behind a reverse proxy, on any
+machine with a public IP. **[`deploy/README.md`](deploy/README.md) is the
+full walkthrough** -- written against Oracle Cloud's Always Free tier, but
+nothing in it is Oracle-specific except opening the cloud-side firewall.
 
 ```bash
-gcloud storage buckets create gs://YOUR_PROJECT_ID-reportit-data --location=us-central1
+ssh you@your-vm
+git clone https://github.com/sahme24/reportit.git catphish && cd catphish
+sudo bash deploy/bootstrap.sh          # docker + instance firewall
+# create .env, point DNS at the VM  (deploy/README.md steps 3-5)
+cd deploy && docker compose --env-file ../.env up -d --build
 ```
 
-**2. Store secrets.** Don't pass API keys as plain env vars; put them in
-Secret Manager instead:
+Caddy terminates TLS and gets its certificate from Let's Encrypt
+automatically. Back the database up with
+[`deploy/backup.sh`](deploy/backup.sh) on a cron -- on your own VM, nothing
+else will.
 
-```bash
-echo -n "YOUR_GOOGLE_CLIENT_ID" | gcloud secrets create reportit-google-client-id --data-file=-
-echo -n "YOUR_GOOGLE_CLIENT_SECRET" | gcloud secrets create reportit-google-client-secret --data-file=-
-echo -n "YOUR_ANTHROPIC_API_KEY" | gcloud secrets create reportit-anthropic-key --data-file=-
-```
-
-**3. Deploy.** `--source .` builds the Dockerfile with Cloud Build and
-deploys in one step, no separate registry setup needed:
-
-```bash
-gcloud run deploy reportit \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --min-instances=0 \
-  --max-instances=1 \
-  --add-volume=name=data,type=cloud-storage,bucket=YOUR_PROJECT_ID-reportit-data \
-  --add-volume-mount=volume=data,mount-path=/data \
-  --set-secrets=GOOGLE_CLIENT_ID=reportit-google-client-id:latest,GOOGLE_CLIENT_SECRET=reportit-google-client-secret:latest,ANTHROPIC_API_KEY=reportit-anthropic-key:latest
-```
-
-`--max-instances=1` matters here: SQLite handles one writer well but isn't
-built for multiple Cloud Run instances hitting the same file concurrently.
-For this project's traffic level that's the right tradeoff; if you outgrow
-it, the next step is a managed database rather than raising the instance
-cap.
-
-**4. Register the callback URL.** `gcloud run deploy` prints a service URL
-like `https://reportit-xxxxx-uc.a.run.app`. Add
-`https://reportit-xxxxx-uc.a.run.app/auth/google/callback` as an authorized
-redirect URI in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-(same OAuth client as local dev, one more entry in the list; see the
-Google sign-in section above for why both `localhost` and `127.0.0.1`
-variants matter for local testing). No code change is needed since
-`app.py` builds the callback URL from the incoming request's own host.
-
-**Redeploying manually:** re-run `./deploy.sh` (wraps steps 1–4 above, safe
-to run repeatedly). This deploys whatever's on disk in this folder, not
-whatever's on GitHub, so a push to GitHub does nothing to the live site on
-its own — see "Auto-deploy on push" below to close that gap.
-
-## A shorter URL
-
-Cloud Run's auto-generated URL (`reportit-476314376398.us-central1.run.app`)
-can't be renamed or shortened directly. [`firebase.json`](firebase.json) sets
-up Firebase Hosting as a free reverse proxy in front of it instead, giving
-you `https://catphish.web.app` (or whatever site ID you pick, subject to
-availability, since `web.app` subdomains are global) with the same backend
-and zero code changes, since `app.py` already builds all its URLs from
-whatever host actually served the request.
-
-> **Why the infrastructure still says `reportit`.** The project was called
-> ReportIT.ai before it was CatPhish. The Cloud Run service, the
-> `reportit-*` secrets, the storage bucket and the `REPORTIT_*` environment
-> variables kept their original names on purpose: none of them are visible
-> to users, and renaming them would mean recreating every secret and
-> migrating the database bucket to change nothing anyone can see. Only the
-> public domain and the interface were rebranded.
-
-**1. Add Firebase to the GCP project** (one-time, browser): go to
-[the Firebase console](https://console.firebase.google.com/), **Add
-project**, choose the existing GCP project (`exalted-pattern-502023-i8`)
-from the dropdown rather than creating a new one, skip Google Analytics.
-Firebase Hosting's Cloud Run integration needs the
-[Blaze plan](https://firebase.google.com/pricing) (pay-as-you-go), not the
-free Spark plan — you're already on a billing-enabled project from the
-Cloud Run setup, so this is just a plan toggle, not a new account.
-
-**2. Sign in and claim the site ID.** `firebase-tools` is already installed:
-
-```bash
-firebase login
-firebase hosting:sites:create catphish --project exalted-pattern-502023-i8
-```
-
-If `catphish` is taken, pick another id and update the `"site"` value in
-`firebase.json` to match.
-
-**3. Deploy:**
-
-```bash
-firebase deploy --only hosting
-```
-
-Firebase prints the live URL when it's done.
-
-**4. Register the new callback URL** in the
-[Google Cloud Console](https://console.cloud.google.com/apis/credentials):
-add `https://catphish.web.app/auth/google/callback` alongside the
-existing ones (the old `run.app` URL keeps working too — nothing needs to
-be removed).
-
-**Redeploying:** `firebase deploy --only hosting` again after any Cloud Run
-change (it just repoints the proxy; the Cloud Run service itself still
-deploys the normal way via `./deploy.sh` or the Cloud Build trigger).
-
-## Auto-deploy on push
-
-Once set up, every push to `main` rebuilds and redeploys automatically via
-[Cloud Build](https://console.cloud.google.com/cloud-build), using
-[`cloudbuild.yaml`](cloudbuild.yaml). This is separate from the GitHub
-Actions pipeline above (that one lints, tests, and builds a GHCR image for
-anyone self-hosting via Docker; this one deploys the actual Cloud Run
-service). Uses Cloud Build's native GitHub integration, not a service
-account key, so there's no long-lived credential to store as a GitHub
-secret.
-
-This is a one-time setup, done once the manual deploy above has run at
-least once (the bucket and secrets it creates are reused, not recreated,
-by every automatic deploy):
-
-**1. Connect the repo.** In the
-[Cloud Build console](https://console.cloud.google.com/cloud-build/triggers) →
-**Connect Repository** → **GitHub** → authorize the Cloud Build GitHub App
-→ select this repo. Since the repo is private, this needs to be done by
-someone with admin access to it.
-
-**2. Create the trigger.** **Create Trigger** →
-- Event: **Push to a branch**
-- Branch: `^main$`
-- Configuration: **Cloud Build configuration file**, location `cloudbuild.yaml`
-
-**3. Grant Cloud Build deploy permission.** Cloud Build's own service
-account needs permission to update the Cloud Run service and push images,
-which it doesn't have by default:
-
-```bash
-chmod +x setup-cicd.sh
-./setup-cicd.sh
-```
-
-From here, every push to `main` triggers a build automatically; watch it at
-the [Cloud Build history page](https://console.cloud.google.com/cloud-build/builds).
-Secrets and the storage bucket aren't touched by these automatic builds —
-if you rotate a key, update it with `gcloud secrets versions add` (or rerun
-`deploy.sh`, which is idempotent) rather than through the trigger.
+> **This used to deploy to Google Cloud Run**, fronted by Firebase Hosting,
+> via a `deploy.sh` and a `firebase.json` that are no longer in the tree
+> (`git log -- deploy.sh` if you want them back). Two things drove the
+> move: Cloud Run requires an active billing account, and Firebase
+> Hosting's rewrite layer silently drops WebSocket upgrades, so live scan
+> progress never worked on the public domain. Both are fixed by running
+> the container yourself -- Caddy proxies WebSockets natively.
 
 ## Contributing (collaborators)
 
