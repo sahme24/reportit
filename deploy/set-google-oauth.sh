@@ -21,16 +21,44 @@ echo "    $CALLBACK"
 echo ""
 
 read -r -p "Client ID (ends .apps.googleusercontent.com): " CLIENT_ID
-# -s: the secret isn't echoed to the terminal as it's typed.
-read -r -s -p "Client secret (hidden): " CLIENT_SECRET
+
 echo ""
+echo "Now the client secret. It will NOT appear as you type or paste --"
+echo "that is deliberate, so it never shows on screen. Paste it ONCE and"
+echo "press Enter. The character count is echoed back so you can confirm"
+echo "it arrived."
+# -s keeps the secret off the screen. The cost is that a paste looks like
+# nothing happened, which invites pasting again and again -- the checks
+# below exist because exactly that produced a 304-character value made of
+# nine concatenated secrets.
+read -r -s -p "Client secret: " CLIENT_SECRET
+echo ""
+echo "  captured ${#CLIENT_SECRET} characters"
 
 [ -n "$CLIENT_ID" ] && [ -n "$CLIENT_SECRET" ] || { echo "ERROR: both values are required."; exit 1; }
+
 case "$CLIENT_ID" in
   *.apps.googleusercontent.com) ;;
   *) echo "ERROR: that doesn't look like a client ID -- it should end in"
      echo "       .apps.googleusercontent.com. Nothing was written."; exit 1;;
 esac
+
+# One secret, pasted once. Google's are ~35 characters and start GOCSPX-.
+COPIES="$(printf '%s' "$CLIENT_SECRET" | grep -o 'GOCSPX-' | wc -l | tr -d ' ')"
+if [ "$COPIES" -gt 1 ]; then
+  echo ""
+  echo "ERROR: the secret contains 'GOCSPX-' $COPIES times, so it was pasted"
+  echo "       $COPIES times rather than once. Nothing was written."
+  echo "       Re-run and paste once -- the screen staying blank is normal."
+  exit 1
+fi
+if [ "${#CLIENT_SECRET}" -gt 60 ]; then
+  echo ""
+  echo "ERROR: the secret is ${#CLIENT_SECRET} characters; Google's are around 35."
+  echo "       That usually means it was pasted more than once, or the whole"
+  echo "       JSON was pasted instead of just the secret. Nothing was written."
+  exit 1
+fi
 
 # A backup, because a bad sed against the only copy of this file means
 # retyping every key in it.
