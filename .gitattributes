@@ -1,0 +1,11 @@
+# Shell scripts and Dockerfiles run on Linux even when this repo is checked
+# out on Windows. Without this, Git's autocrlf rewrites them to CRLF locally
+# and `git archive` ships those carriage returns to the server, where bash
+# reports "$'\r': command not found" on every line -- an error that points
+# at the script's contents rather than at its line endings.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+Caddyfile       text eol=lf
+.env.example    text eol=lf
