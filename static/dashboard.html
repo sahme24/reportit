@@ -50,12 +50,21 @@
     </div>
   </div>
 
+  <!-- What every scan does, rather than how many scans have run. Usage
+       counts on a young tool advertise how little it has been used, and
+       they say nothing about whether it is any good. These are fixed
+       properties of the scanner, verifiable in the source, and true on
+       day one -- so they are hard-coded deliberately rather than queried.
+       Update them when the checks change: 48 is the number of distinct
+       Finding() sites across threadline/. The heading says "can run", not
+       "runs on every scan", because 7 of those are SMS-only and never
+       fire on an email. -->
   <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-head"><span class="panel-title">Community impact across CatPhish</span></div>
+    <div class="panel-head"><span class="panel-title">What CatPhish can run</span></div>
     <div class="verdict-split">
-      <span class="split-item">Messages investigated <b id="iScans">-</b></span>
-      <span class="split-item">Threats detected <b id="iThreats">-</b></span>
-      <span class="split-item">Active users <b id="iUsers">-</b></span>
+      <span class="split-item">Detection checks <b>48</b></span>
+      <span class="split-item">Threat-intel sources <b>4</b></span>
+      <span class="split-item">Languages detected <b>3</b></span>
     </div>
   </div>
 
@@ -114,9 +123,6 @@ CatPhish.topbar("/dashboard").then(async user => {
                                 : `next slot frees ${fmtTime(s.ai_refresh_at)}`)
         : "3 free AI scans, any 24h window");
   }
-  set("iScans", fmt(s.instance.scans));
-  set("iThreats", fmt(s.instance.threats));
-  set("iUsers", fmt(s.instance.users));
 
   if (!s.recent.length) {
     document.getElementById("uTable").style.display = "none";
