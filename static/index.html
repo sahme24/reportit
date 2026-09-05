@@ -183,6 +183,56 @@
     margin-bottom: 4px;
   }
 
+  /* Full-width statement band. Sits between the two densest sections,
+     which is where the page most needs air. Deliberately carries no
+     attribution and no quotation marks: a quoted line with a name under
+     it reads as a testimonial, and there is no one to credit. As a plain
+     statement of intent it claims nothing that isn't true. */
+  .statement {
+    background: var(--primary-wash);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 100px 20px 104px;
+    text-align: center;
+    margin-top: 60px;
+  }
+
+  .statement-inner { max-width: 900px; margin: 0 auto; }
+
+  .statement-line {
+    /* var(--font-display), not a hard-coded family: the page moved from
+       Fraunces to Geist, and naming the font here would have silently
+       fallen back to Georgia while everything around it changed. */
+    font-family: var(--font-display);
+    /* Larger than anything else on the page, including the hero, so it
+       reads as the thesis rather than as one more heading. Weight stays
+       light to match the rest of the type -- at this size the scale
+       carries the emphasis, and 600 would shout next to 450 headings. */
+    font-size: clamp(38px, 7vw, 66px);
+    font-weight: 450;
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    color: var(--ink);
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  /* Geist has no italic worth using at display size, so the emphasis is
+     carried by colour and a slightly heavier stroke instead. */
+  .statement-line em {
+    font-style: normal;
+    font-weight: 550;
+    color: var(--primary);
+  }
+
+  .statement-sub {
+    margin: 26px auto 0;
+    max-width: 44ch;
+    font-size: 16.5px;
+    line-height: 1.7;
+    color: var(--dim);
+  }
+
   /* A tonal panel, not a hard dark band. Two bugs came from the old
      hard-coded #1A1207: h1,h2,h3 in theme.css sets color:var(--ink)
      explicitly, which beats the inherited light colour, so the heading
@@ -433,6 +483,17 @@
         Legitimate companies use shortcodes and verified domains. Scammers use unregistered domains and generic gateways. We score the entire chain.
       </li>
     </ul>
+  </div>
+</section>
+
+<!-- The thesis of the whole product, given its own band. -->
+<section class="statement">
+  <div class="statement-inner">
+    <p class="statement-line">Make security <em>easy</em>.</p>
+    <p class="statement-sub">
+      Not simplified, not dumbed down &mdash; just done for you. The same
+      investigation a security team would run, in seconds, for free.
+    </p>
   </div>
 </section>
 
