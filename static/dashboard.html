@@ -18,9 +18,9 @@
   .verdict-split{display:flex;gap:16px;flex-wrap:wrap;padding:15px 18px;}
   .split-item{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--dim);}
   .split-item b{color:var(--ink);font-family:var(--font-display);}
-  /* The bare "10" invited "which ten?", so the names sit right under it.
-     Plain text rather than chips: ten pills would outweigh the three
-     figures they explain. */
+  /* Languages are named, not counted: a bare "10" only prompted "which
+     ten?". Plain text rather than chips, so ten labels don't outweigh the
+     figures above them. */
   .lang-list{padding:0 18px 15px;font-size:12.5px;line-height:1.7;color:var(--dim);}
   .lang-list b{color:var(--ink);font-weight:500;}
 </style>
@@ -63,22 +63,18 @@
        Update them when the checks change: 49 is the number of distinct
        Finding() sites across threadline/. The heading says "can run", not
        "runs on every scan", because 7 of those are SMS-only and never
-       fire on an email. The language figure is len(content.LANGUAGES), and
-       tests/test_content.py fails if the two drift apart. -->
+       fire on an email. The language list mirrors content.LANGUAGES, and
+       tests/test_content.py fails if the two ever differ. -->
   <div class="panel" style="margin-bottom:20px;">
     <div class="panel-head"><span class="panel-title">What CatPhish can run</span></div>
     <div class="verdict-split">
       <span class="split-item">Detection checks <b>49</b></span>
       <span class="split-item">Threat-intel sources <b>4</b></span>
-      <span class="split-item">Scam-phrase languages <b>10</b></span>
     </div>
-    <!-- Order and names mirror content.LANGUAGES / _LANG_NAMES;
-         tests/test_content.py fails if a language is missing here. -->
+    <!-- Names and order mirror content.LANGUAGES / _LANG_NAMES. -->
     <div class="lang-list">
-      <b>English, French, Spanish, Portuguese, Italian, German, Arabic,
-      Russian, Hindi and Chinese.</b> Messages in any other language still
-      get every check that doesn't read the words, and are marked as not
-      covered rather than passed off as checked.
+      Now supports <b>English, French, Spanish, Portuguese, Italian, German,
+      Arabic, Russian, Hindi and Chinese.</b>
     </div>
   </div>
 

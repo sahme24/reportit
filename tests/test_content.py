@@ -1,7 +1,6 @@
 """Language-aware content layer: detection, per-language patterns, anomalies."""
 
 import json
-import re
 from pathlib import Path
 
 from threadline.content import (LANGUAGES, UNKNOWN, _LANG_NAMES,
@@ -228,22 +227,23 @@ def test_rejects_text_that_is_not_a_string():
     assert raised
 
 
-def test_dashboard_language_count_matches_supported_languages():
-    # The dashboard figure is hard-coded HTML. Without this check, adding or
-    # removing a pack would leave the live site advertising a number that is
-    # no longer true.
+def test_dashboard_lists_exactly_the_supported_languages():
+    # The "Now supports" line is hard-coded HTML. Checking only that each
+    # name appears somewhere would miss a language left listed after its
+    # pack was removed, so the list must match LANGUAGES exactly, in order.
     html = DASHBOARD.read_text(encoding="utf-8")
-    found = re.search(r"Scam-phrase languages <b>(\d+)</b>", html)
-    assert found is not None, "the dashboard no longer shows the language count"
-    assert int(found.group(1)) == len(LANGUAGES)
-
-
-def test_dashboard_names_every_supported_language():
-    # The dashboard lists the languages by name in hard-coded HTML. The
-    # count check alone would pass if a pack were swapped for another, or
-    # if a new one were added and the count bumped without its name, so
-    # every supported language must actually appear in the list.
-    html = DASHBOARD.read_text(encoding="utf-8")
+    start = html.index("Now supports <b>") + len("Now supports <b>")
+    end = html.index("</b>", start)
+    # Collapse the line wrapping first, so "and" split across lines still
+    # reads as a separator.
+    text = " ".join(html[start:end].split())
+    text = text.replace(" and ", ", ").replace(".", "")
+    listed = []
+    for part in text.split(","):
+        name = part.strip()
+        if name != "":
+            listed.append(name)
+    expected = []
     for code in LANGUAGES:
-        name = _LANG_NAMES[code]
-        assert name in html, name + " is supported but not listed on the dashboard"
+        expected.append(_LANG_NAMES[code])
+    assert listed == expected, "dashboard lists " + str(listed)
