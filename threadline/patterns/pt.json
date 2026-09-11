@@ -1,0 +1,31 @@
+{
+  "_comment": "Portuguese scam patterns (Brazil first: Receita Federal, Correios, Detran, Serasa, points-expiry lures; Portugal also covered). Written by a non-native speaker from common phishing and smishing wording -- have a native speaker review before relying on them. Matching is case-insensitive substring on the casefolded message, so every phrase must already be lowercase.",
+  "urgency": [
+    "sua conta foi bloqueada", "sua conta foi suspensa", "sua conta será bloqueada",
+    "sua conta sera bloqueada", "conta bloqueada", "conta suspensa",
+    "verifique sua conta", "confirme sua identidade", "atividade suspeita",
+    "atividade incomum", "acesso incomum", "ação necessária", "acao necessaria",
+    "nas próximas 24 horas", "em até 24 horas", "último aviso", "ultimo aviso",
+    "aviso final", "pagamento recusado", "evite o bloqueio", "medidas judiciais"
+  ],
+  "urgency_sms_extra": [
+    "encomenda retida", "entrega não realizada", "falha na entrega",
+    "reagendar a entrega", "taxa de entrega", "taxa alfandegária",
+    "taxa de importação", "pagamento pendente", "débito pendente",
+    "multa pendente", "pontos expirando", "resgate seus pontos",
+    "restituição", "clique no link"
+  ],
+  "info_request": [
+    "informe sua senha", "digite sua senha", "confirme sua senha",
+    "número do cartão", "numero do cartao", "código de segurança",
+    "codigo de seguranca", "data de validade", "dados bancários",
+    "dados do cartão", "atualize seus dados", "atualize seu cadastro",
+    "informe seu cpf", "número do cpf", "token de acesso",
+    "código recebido por sms"
+  ],
+  "authority": [
+    "receita federal", "banco central", "caixa econômica", "seu banco",
+    "central de segurança", "departamento de fraudes", "polícia federal",
+    "tribunal de justiça", "mandado de prisão", "correios", "detran", "serasa"
+  ]
+}

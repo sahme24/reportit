@@ -1,0 +1,25 @@
+{
+  "_comment": "Hindi scam patterns in Devanagari (KYC update, OTP, electricity disconnection, RBI and Aadhaar lures). Written by a non-native speaker from common phishing and smishing wording -- have a native speaker review before relying on them. Romanised Hindi (Hinglish) written in Latin script is NOT covered by this pack. Matching is substring on the casefolded message.",
+  "urgency": [
+    "आपका खाता बंद", "आपका खाता ब्लॉक", "खाता निलंबित",
+    "खाता बंद कर दिया जाएगा", "तुरंत", "24 घंटे के भीतर", "24 घंटे में",
+    "अंतिम चेतावनी", "अंतिम सूचना", "संदिग्ध गतिविधि",
+    "अपनी पहचान सत्यापित करें", "केवाईसी अपडेट", "भुगतान विफल",
+    "कानूनी कार्रवाई"
+  ],
+  "urgency_sms_extra": [
+    "पार्सल रुका", "डिलीवरी विफल", "डिलीवरी नहीं हो सकी", "सीमा शुल्क",
+    "बकाया राशि", "बिजली कनेक्शन काट", "बिजली बिल", "रिफंड", "इनाम जीता",
+    "लिंक पर क्लिक करें"
+  ],
+  "info_request": [
+    "ओटीपी बताएं", "ओटीपी साझा", "ओटीपी शेयर", "अपना पिन", "पासवर्ड दर्ज करें",
+    "कार्ड नंबर", "सीवीवी", "समाप्ति तिथि", "बैंक विवरण", "आधार नंबर",
+    "पैन कार्ड नंबर", "यूपीआई पिन"
+  ],
+  "authority": [
+    "भारतीय रिज़र्व बैंक", "आरबीआई", "आयकर विभाग", "आपका बैंक", "साइबर सेल",
+    "पुलिस", "सीबीआई", "सीमा शुल्क विभाग", "अदालत का आदेश",
+    "गिरफ्तारी वारंट", "भारतीय डाक"
+  ]
+}

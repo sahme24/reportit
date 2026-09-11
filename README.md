@@ -156,7 +156,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 | Spoofing | Reply-To / Return-Path mismatches, display-name brand claims, corporate identity on freemail |
 | URLs | Homoglyph typosquats (`0ffice365`, `paypa1`, `rnicrosoft`), punycode, `@`-userinfo tricks, high-abuse TLDs, shorteners, anchor-text/href mismatch, IP-literal links |
 | Attachments | Executable & macro-capable types, SHA-256 for every file |
-| Content | Urgency and pressure language |
+| Content | Urgency, credential-request and authority phrasing in 10 languages: English, French, Spanish, Portuguese, Italian, German, Arabic, Russian, Hindi and Chinese. Messages in any other language are flagged as not covered instead of being checked against English |
 | Reputation | Domain age via RDAP (keyless), VirusTotal, AbuseIPDB, URLhaus |
 | History | Repeat senders/domains across this instance's previous cases |
 | SMS (smishing) | Brand-name lures pointing at unofficial domains, gateway/full-number senders, pressure language, all URL checks |

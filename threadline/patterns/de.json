@@ -1,0 +1,31 @@
+{
+  "_comment": "German scam patterns (Finanzamt, Sparkasse, Deutsche Post, TAN lures). Written by a non-native speaker from common phishing and smishing wording -- have a native speaker review before relying on them. Matching is case-insensitive substring on the casefolded message, so every phrase must already be lowercase AND must spell the sharp s as 'ss': casefold() turns every 'ß' in a message into 'ss', so a phrase containing 'ß' can never match.",
+  "urgency": [
+    "ihr konto wurde gesperrt", "ihr konto wird gesperrt", "konto gesperrt",
+    "konto eingeschränkt", "verifizieren sie ihr konto",
+    "bestätigen sie ihre identität", "ungewöhnliche aktivität",
+    "verdächtige aktivität", "ungewöhnliche anmeldung", "sofortiges handeln",
+    "handlungsbedarf", "innerhalb von 24 stunden", "letzte mahnung",
+    "letzte warnung", "zahlung fehlgeschlagen", "zahlung abgelehnt",
+    "rechtliche schritte", "inkassoverfahren", "sperrung ihres kontos"
+  ],
+  "urgency_sms_extra": [
+    "paket konnte nicht zugestellt", "zustellung fehlgeschlagen",
+    "sendung wird zurückgehalten", "zollgebühren", "versandkosten nachzahlen",
+    "offener betrag", "ausstehende zahlung", "rückerstattung", "erstattung",
+    "mautgebühr", "klicken sie hier"
+  ],
+  "info_request": [
+    "geben sie ihre pin", "bestätigen sie ihre pin", "geben sie ihr passwort",
+    "bestätigen sie ihr passwort", "kartennummer", "sicherheitscode",
+    "prüfziffer", "ablaufdatum und", "bankdaten", "kontodaten",
+    "zugangsdaten", "aktualisieren sie ihre daten", "tan-nummer",
+    "bestätigungscode weitergeben"
+  ],
+  "authority": [
+    "finanzamt", "bundeszentralamt für steuern", "deutsche rentenversicherung",
+    "ihre bank", "sparkasse", "sicherheitsabteilung", "betrugsabteilung",
+    "polizei", "staatsanwaltschaft", "gerichtsbeschluss", "haftbefehl",
+    "zollamt", "deutsche post"
+  ]
+}

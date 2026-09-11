@@ -55,16 +55,17 @@
        they say nothing about whether it is any good. These are fixed
        properties of the scanner, verifiable in the source, and true on
        day one -- so they are hard-coded deliberately rather than queried.
-       Update them when the checks change: 48 is the number of distinct
+       Update them when the checks change: 49 is the number of distinct
        Finding() sites across threadline/. The heading says "can run", not
        "runs on every scan", because 7 of those are SMS-only and never
-       fire on an email. -->
+       fire on an email. The language figure is len(content.LANGUAGES), and
+       tests/test_content.py fails if the two drift apart. -->
   <div class="panel" style="margin-bottom:20px;">
     <div class="panel-head"><span class="panel-title">What CatPhish can run</span></div>
     <div class="verdict-split">
-      <span class="split-item">Detection checks <b>48</b></span>
+      <span class="split-item">Detection checks <b>49</b></span>
       <span class="split-item">Threat-intel sources <b>4</b></span>
-      <span class="split-item">Languages detected <b>3</b></span>
+      <span class="split-item">Scam-phrase languages <b>10</b></span>
     </div>
   </div>
 

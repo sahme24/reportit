@@ -1,0 +1,29 @@
+{
+  "_comment": "Italian scam patterns (Agenzia delle Entrate, INPS, Poste Italiane lures). Written by a non-native speaker from common phishing and smishing wording -- have a native speaker review before relying on them. Matching is case-insensitive substring on the casefolded message, so every phrase must already be lowercase.",
+  "urgency": [
+    "il tuo conto è stato bloccato", "il tuo conto è stato sospeso",
+    "il tuo account è stato bloccato", "il tuo account è stato sospeso",
+    "conto bloccato", "account sospeso", "verifica il tuo account",
+    "conferma la tua identità", "attività sospetta", "attività insolita",
+    "accesso insolito", "azione richiesta", "entro 24 ore", "ultimo avviso",
+    "avviso finale", "pagamento rifiutato", "azioni legali", "provvedimenti legali"
+  ],
+  "urgency_sms_extra": [
+    "pacco in giacenza", "consegna non riuscita", "spedizione in sospeso",
+    "riprogramma la consegna", "spese di spedizione", "dazi doganali",
+    "pagamento in sospeso", "multa non pagata", "rimborso", "clicca qui"
+  ],
+  "info_request": [
+    "inserisci il tuo pin", "conferma il tuo pin", "inserisci la tua password",
+    "conferma la tua password", "numero della carta", "codice di sicurezza",
+    "codice cvv", "data di scadenza e", "dati bancari", "dati della carta",
+    "aggiorna i tuoi dati", "codice fiscale", "credenziali di accesso",
+    "comunicaci il codice"
+  ],
+  "authority": [
+    "agenzia delle entrate", "inps", "la tua banca", "poste italiane",
+    "guardia di finanza", "polizia postale", "carabinieri", "ufficio antifrode",
+    "ufficio sicurezza", "ordinanza del tribunale", "mandato di arresto",
+    "agenzia delle dogane"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "_comment": "Spanish scam patterns (Spain and Latin America). Written by a non-native speaker from common phishing and smishing wording -- have a native speaker review before relying on them. Matching is case-insensitive substring on the casefolded message, so every phrase must already be lowercase. Generic phrases that also appear in legitimate mail (a plain 'verification code') are deliberately left out.",
+  "urgency": [
+    "su cuenta ha sido suspendida", "su cuenta será suspendida", "su cuenta sera suspendida",
+    "su cuenta ha sido bloqueada", "cuenta bloqueada", "cuenta suspendida",
+    "verifique su cuenta", "confirme su identidad", "actividad inusual",
+    "actividad sospechosa", "inicio de sesión inusual", "acción requerida",
+    "accion requerida", "acción inmediata", "en las próximas 24 horas",
+    "dentro de 24 horas", "último aviso", "ultimo aviso", "aviso final",
+    "pago rechazado", "su cuenta será cancelada", "medidas legales", "acciones legales"
+  ],
+  "urgency_sms_extra": [
+    "paquete retenido", "entrega fallida", "no pudimos entregar",
+    "reprogramar la entrega", "gastos de envío", "gastos de aduana",
+    "tasa de aduana", "pago pendiente", "saldo pendiente", "multa pendiente",
+    "peaje pendiente", "reembolso", "devolución de impuestos", "reclame su",
+    "haga clic aquí"
+  ],
+  "info_request": [
+    "introduzca su pin", "ingrese su pin", "confirme su pin",
+    "introduzca su contraseña", "ingrese su contraseña", "confirme su contraseña",
+    "número de tarjeta", "numero de tarjeta", "código de seguridad",
+    "codigo de seguridad", "fecha de caducidad y", "fecha de vencimiento y",
+    "datos bancarios", "datos de su tarjeta", "actualice sus datos",
+    "actualice su método de pago", "número de seguridad social",
+    "compártanos el código", "díganos el código", "credenciales de acceso"
+  ],
+  "authority": [
+    "agencia tributaria", "hacienda pública", "servicio de administración tributaria",
+    "seguridad social", "su banco", "departamento de fraude",
+    "departamento de seguridad", "policía nacional", "guardia civil",
+    "orden judicial", "orden de arresto", "servicio de aduanas"
+  ]
+}

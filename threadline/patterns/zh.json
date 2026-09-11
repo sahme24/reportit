@@ -1,0 +1,22 @@
+{
+  "_comment": "Chinese scam patterns, Simplified first with common Traditional spellings of the account-frozen lure (police/court impersonation, frozen account, verification-code theft, parcel and customs lures). Written by a non-native speaker from common phishing and smishing wording -- have a native speaker review before relying on them. Chinese has no spaces, so plain substring matching works without word boundaries. Generic words that appear in ordinary mail (a bare 'expiry date') are deliberately left out.",
+  "urgency": [
+    "账户已被冻结", "账户已冻结", "帐户已被冻结", "帳戶已被凍結", "账户异常",
+    "账号异常", "异常登录", "可疑交易", "立即验证", "请立即", "24小时内",
+    "二十四小时内", "逾期未处理", "最后通知", "最后警告", "将被注销",
+    "将被停用", "法律责任", "司法冻结"
+  ],
+  "urgency_sms_extra": [
+    "包裹滞留", "快递异常", "派送失败", "无法派送", "关税", "补缴", "退款",
+    "理赔", "积分即将过期", "点击链接"
+  ],
+  "info_request": [
+    "验证码告诉", "提供验证码", "告知验证码", "输入密码", "银行卡号", "安全码",
+    "卡片有效期", "身份证号", "银行卡信息", "填写个人信息", "更新您的资料",
+    "网银密码"
+  ],
+  "authority": [
+    "公安局", "公安机关", "检察院", "法院传票", "税务局", "海关",
+    "中国人民银行", "银保监会", "您的银行", "社保局", "通缉令"
+  ]
+}
