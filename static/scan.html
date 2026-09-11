@@ -74,6 +74,18 @@
   .mtab.active{background:var(--primary);color:var(--primary-ink);}
   .sender-row{margin-bottom:14px;max-width:340px;}
 
+  /* At 375px the intake header needs ~485px for its title, quota chip
+     and both tabs, so the tab group sat 110px past the right edge: the
+     Email tab was half cut and the SMS tab was off-screen entirely,
+     which also made the whole page scroll sideways. The header wraps
+     (theme.css), and here the tabs claim a full-width row of their own,
+     split evenly so each is an obvious, comfortable tap target. */
+  @media (max-width:560px){
+    #intake .panel-head > div{flex-wrap:wrap;width:100%;}
+    .mode-tabs{width:100%;}
+    .mtab{flex:1;justify-content:center;padding:10px 12px;}
+  }
+
   /* ------------------------- "how to get the raw email" walkthrough ---- */
   .howto-overlay{
     position:fixed;inset:0;background:rgba(9,15,29,0.55);z-index:80;

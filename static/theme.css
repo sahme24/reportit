@@ -347,7 +347,34 @@ table.data tbody tr:hover{background-color:var(--bg-soft);}
 }
 
 @media (max-width:720px){
+  /* A panel header is a title plus controls on one row. On a narrow
+     screen that row can need more width than it has, and without
+     wrapping the controls are pushed off the right edge instead of
+     moving down -- which is how the scanner's SMS tab ended up
+     entirely off-screen. Wrapping only engages once it overflows, so
+     headers that already fit are untouched. */
+  .panel-head{flex-wrap:wrap;}
+
   .nav-links a{padding:6px 8px;font-size:13.5px;}
   body{font-size:14px;}
   .nav-inner{flex-wrap:wrap;}
+
+  /* .nav-right is flex-shrink:0 and .welcome is nowrap, so the greeting,
+     the sign-out button and the theme toggle were locked at one width
+     that refuses to shrink. Letting .nav-inner wrap only moved that
+     block onto its own line -- still too wide for a 320px phone, so it
+     hung past the edge and the whole page scrolled sideways. Allowing
+     the group itself to wrap lets the button and toggle drop below the
+     greeting instead. */
+  .nav-right{flex-wrap:wrap;justify-content:flex-end;flex-shrink:1;}
+  .welcome{white-space:normal;}
+}
+
+/* Below ~420px the 28px gutters cost 56px of a 320px screen, which is
+   what pushes the navbar over the edge in the first place. Narrower
+   gutters buy back the room without changing anything on larger
+   phones, where 28px still reads as intended. */
+@media (max-width:420px){
+  .wrap{padding:0 16px;}
+  .nav-inner{padding:12px 16px;}
 }
