@@ -60,15 +60,16 @@
        they say nothing about whether it is any good. These are fixed
        properties of the scanner, verifiable in the source, and true on
        day one -- so they are hard-coded deliberately rather than queried.
-       Update them when the checks change: 49 is the number of distinct
-       Finding() sites across threadline/. The heading says "can run", not
+       The checks figure is a floor, not a count: there are 49 distinct
+       Finding() sites across threadline/, and "40+" stays true as more are
+       added, so it only needs touching if the total ever falls below 40. The heading says "can run", not
        "runs on every scan", because 7 of those are SMS-only and never
        fire on an email. The language list mirrors content.LANGUAGES, and
        tests/test_content.py fails if the two ever differ. -->
   <div class="panel" style="margin-bottom:20px;">
     <div class="panel-head"><span class="panel-title">What CatPhish can run</span></div>
     <div class="verdict-split">
-      <span class="split-item">Detection checks <b>49</b></span>
+      <span class="split-item">Detection checks <b>40+</b></span>
       <span class="split-item">Threat-intel sources <b>4</b></span>
     </div>
     <!-- Names mirror content._LANG_NAMES, listed alphabetically. -->

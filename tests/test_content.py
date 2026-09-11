@@ -249,3 +249,23 @@ def test_dashboard_lists_exactly_the_supported_languages():
         expected.append(_LANG_NAMES[code])
     expected.sort()
     assert listed == expected, "dashboard lists " + str(listed)
+
+
+def test_dashboard_detection_check_floor_is_still_true():
+    # The dashboard promises "40+" detection checks. That stays honest only
+    # while the scanner really has at least 40, so cutting checks below the
+    # floor must fail here instead of leaving the live site overclaiming.
+    html = DASHBOARD.read_text(encoding="utf-8")
+    assert "Detection checks <b>40+</b>" in html
+    count = 0
+    for path in sorted((ROOT / "threadline").glob("*.py")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if "Finding(" not in line:
+                continue
+            # Type hints and imports mention Finding without creating one.
+            if "def " in line or "import " in line:
+                continue
+            if "list[Finding]" in line or "-> Finding" in line:
+                continue
+            count += 1
+    assert count >= 40, "only " + str(count) + " detection checks remain"
