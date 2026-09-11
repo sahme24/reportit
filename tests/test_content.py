@@ -230,7 +230,8 @@ def test_rejects_text_that_is_not_a_string():
 def test_dashboard_lists_exactly_the_supported_languages():
     # The "Now supports" line is hard-coded HTML. Checking only that each
     # name appears somewhere would miss a language left listed after its
-    # pack was removed, so the list must match LANGUAGES exactly, in order.
+    # pack was removed, so the list must name exactly the supported
+    # languages -- in alphabetical order, which is how the page shows them.
     html = DASHBOARD.read_text(encoding="utf-8")
     start = html.index("Now supports <b>") + len("Now supports <b>")
     end = html.index("</b>", start)
@@ -246,4 +247,5 @@ def test_dashboard_lists_exactly_the_supported_languages():
     expected = []
     for code in LANGUAGES:
         expected.append(_LANG_NAMES[code])
+    expected.sort()
     assert listed == expected, "dashboard lists " + str(listed)
