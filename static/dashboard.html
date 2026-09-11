@@ -18,6 +18,11 @@
   .verdict-split{display:flex;gap:16px;flex-wrap:wrap;padding:15px 18px;}
   .split-item{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--dim);}
   .split-item b{color:var(--ink);font-family:var(--font-display);}
+  /* The bare "10" invited "which ten?", so the names sit right under it.
+     Plain text rather than chips: ten pills would outweigh the three
+     figures they explain. */
+  .lang-list{padding:0 18px 15px;font-size:12.5px;line-height:1.7;color:var(--dim);}
+  .lang-list b{color:var(--ink);font-weight:500;}
 </style>
 </head>
 <body>
@@ -66,6 +71,14 @@
       <span class="split-item">Detection checks <b>49</b></span>
       <span class="split-item">Threat-intel sources <b>4</b></span>
       <span class="split-item">Scam-phrase languages <b>10</b></span>
+    </div>
+    <!-- Order and names mirror content.LANGUAGES / _LANG_NAMES;
+         tests/test_content.py fails if a language is missing here. -->
+    <div class="lang-list">
+      <b>English, French, Spanish, Portuguese, Italian, German, Arabic,
+      Russian, Hindi and Chinese.</b> Messages in any other language still
+      get every check that doesn't read the words, and are marked as not
+      covered rather than passed off as checked.
     </div>
   </div>
 

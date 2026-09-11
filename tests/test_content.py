@@ -4,8 +4,8 @@ import json
 import re
 from pathlib import Path
 
-from threadline.content import (LANGUAGES, UNKNOWN, content_findings,
-                                detect_language)
+from threadline.content import (LANGUAGES, UNKNOWN, _LANG_NAMES,
+                                content_findings, detect_language)
 from threadline.sms import scan_sms
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -236,3 +236,14 @@ def test_dashboard_language_count_matches_supported_languages():
     found = re.search(r"Scam-phrase languages <b>(\d+)</b>", html)
     assert found is not None, "the dashboard no longer shows the language count"
     assert int(found.group(1)) == len(LANGUAGES)
+
+
+def test_dashboard_names_every_supported_language():
+    # The dashboard lists the languages by name in hard-coded HTML. The
+    # count check alone would pass if a pack were swapped for another, or
+    # if a new one were added and the count bumped without its name, so
+    # every supported language must actually appear in the list.
+    html = DASHBOARD.read_text(encoding="utf-8")
+    for code in LANGUAGES:
+        name = _LANG_NAMES[code]
+        assert name in html, name + " is supported but not listed on the dashboard"
