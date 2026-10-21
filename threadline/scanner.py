@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from . import ocr
 from .advice import advice_for
-from .auth import URGENCY_PHRASES, auth_findings
-from .content import content_findings
+from .auth import auth_findings
+from .content import (_LANG_NAMES, UNKNOWN, _patterns, content_findings,
+                      detect_language)
 from .models import (BAD, INFO, OK, WARN, Case, ChainNode, Finding, UrlInfo,
                      case_id_for)
 from .parser import ParsedEmail, parse_email
@@ -47,6 +48,62 @@ def _url_findings(urls: list[UrlInfo]) -> list[Finding]:
     return findings
 
 
+def _image_pressure_findings(text: str, filename: str) -> list[Finding]:
+    """Pressure wording in text OCR'd out of one image, matched against the
+    pattern pack for the language that text is written in.
+
+    Kept separate from _image_findings() so it can be exercised with plain
+    text: the OCR step needs the Tesseract binary, which isn't installed
+    everywhere the tests run.
+    """
+    if type(text) is not str:
+        raise ValueError(
+            "_image_pressure_findings expects text as a str, got "
+            + type(text).__name__)
+    if type(filename) is not str:
+        raise ValueError(
+            "_image_pressure_findings expects filename as a str, got "
+            + type(filename).__name__)
+
+    findings: list[Finding] = []
+
+    # The lure in an image is written for its target market, the same as the
+    # message body, so an English-only phrase list let a French or Arabic
+    # image through without a word.
+    lang = detect_language(text)
+    if lang == UNKNOWN:
+        # No pack for this language. Matching English phrases instead would
+        # only catch stray loanwords, and a finding (or its absence) would
+        # imply the image's wording had been checked when it hadn't been.
+        return findings
+
+    # casefold(), not lower(): it also folds characters lower() leaves alone,
+    # such as German "ß" to "ss", which is how the packs spell them.
+    folded = text.casefold()
+    hits: list[str] = []
+    for phrase in _patterns(lang).get("urgency", []):
+        if phrase in folded:
+            hits.append(phrase)
+    if not hits:
+        return findings
+
+    quoted: list[str] = []
+    for hit in hits[:3]:
+        quoted.append('"' + hit + '"')
+    # English keeps its original wording exactly; other languages name the
+    # pack so an analyst knows which phrase list produced the match.
+    lang_note = ""
+    if lang != "en":
+        lang_note = " (" + _LANG_NAMES[lang] + " patterns)"
+    findings.append(Finding(
+        WARN, "Pressure language inside an image",
+        "OCR read pressure phrasing out of " + filename + lang_note + ": "
+        + ", ".join(quoted)
+        + ". Hiding the lure in an image is a filter-evasion technique.",
+        weight=10, category="image"))
+    return findings
+
+
 def _image_findings(email: ParsedEmail) -> tuple[list[Finding], list[UrlInfo]]:
     """OCR attached/inline images and analyze whatever text hides in them.
     Returns the findings plus any URLs recovered from the images so they
@@ -81,14 +138,7 @@ def _image_findings(email: ParsedEmail) -> tuple[list[Finding], list[UrlInfo]]:
                 "filters: " + "; ".join(u.defanged for u in found[:3]) + ".",
                 weight=25 if severity == BAD else 15, category="image"))
         else:
-            hits = [p for p in URGENCY_PHRASES if p in text.lower()]
-            if hits:
-                findings.append(Finding(
-                    WARN, "Pressure language inside an image",
-                    f"OCR read pressure phrasing out of {img['filename']}: "
-                    + ", ".join(f'"{h}"' for h in hits[:3])
-                    + ". Hiding the lure in an image is a filter-evasion "
-                    "technique.", weight=10, category="image"))
+            findings += _image_pressure_findings(text, img["filename"])
     return findings, urls
 
 

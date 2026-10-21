@@ -12,8 +12,9 @@ FREEMAIL = {
     "proton.me", "protonmail.com", "icloud.com", "mail.com", "gmx.com",
 }
 
-# Kept as a public name for existing callers (OCR pressure check), but the
-# single source of truth is now threadline/patterns/en.json.
+# Kept as a public name for the sandbox's landing-page urgency check, but the
+# single source of truth is now threadline/patterns/en.json. The OCR pressure
+# check no longer uses it: it picks the pack for the image text's language.
 URGENCY_PHRASES = tuple(_patterns("en").get("urgency", []))
 
 
