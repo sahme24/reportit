@@ -21,23 +21,27 @@ RUN pip install --no-cache-dir -r requirements.txt
 # to start, so on a 512 MB free tier the browser would only ever OOM. Build
 # with --build-arg INSTALL_BROWSER=false there (and set REPORTIT_SANDBOX=off)
 # for a small, fast image without link detonation.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ARG INSTALL_BROWSER=true
 RUN if [ "$INSTALL_BROWSER" = "true" ]; then \
-        playwright install --with-deps chromium; \
+        playwright install --with-deps chromium \
+        && chmod -R a+rX /ms-playwright; \
     else \
         echo "Skipping Chromium: this image cannot detonate links."; \
     fi
 
-COPY . .
+RUN useradd --create-home --uid 10001 appuser
+COPY --chown=appuser:appuser . .
 
 # The SQLite database lives here. For local docker run, mount a volume:
 #   docker run -p 8080:8080 -v reportit-data:/data --env-file .env reportit
 # For Cloud Run, mount a Cloud Storage bucket instead (see README's Deploy
 # section) so the database survives cold starts and redeploys.
 ENV THREADLINE_DB=/data/threadline.db
-RUN mkdir /data
+RUN mkdir /data && chown appuser:appuser /data
 VOLUME /data
 
+USER appuser
 EXPOSE 8080
 # $PORT is honoured if the platform sets one (some PaaS hosts do); the shell
 # form lets it expand at start time. On Hugging Face Spaces nothing is
