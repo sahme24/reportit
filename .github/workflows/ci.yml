@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
 
+      - name: Show tool versions
+        run: ruff --version && python --version
+
       - name: Lint (ruff)
         run: ruff check .
 
@@ -60,15 +63,23 @@ jobs:
           pip install semgrep
           semgrep scan --config p/python --config p/owasp-top-ten --config p/secrets --error .
 
-      # Dependency and config scan of the repo. Report only for now (exit-code 0).
-      # After you triage the baseline, change exit-code to '1' to make it block.
+      # Trivy is installed straight from GitHub Releases at a pinned, known-safe
+      # version (v0.69.3) and verified against the official SHA256, so there is no
+      # third-party action in the path.
+      - name: Install Trivy (pinned, checksum verified)
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL --retry 3 --retry-all-errors -o trivy.tar.gz \
+            https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz
+          echo "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+          sudo install trivy /usr/local/bin/trivy
+          trivy --version
+
+      # Dependency and config scan of the repo. Report only for now (--exit-code 0).
+      # After you triage the baseline, change --exit-code to 1 to make it block.
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: CRITICAL,HIGH
-          exit-code: "0"
+        run: trivy fs --severity CRITICAL,HIGH --exit-code 0 .
 
   docker-build:
     name: Build image (no push)
@@ -90,13 +101,19 @@ jobs:
       - name: Verify Chromium is readable by the app user
         run: docker run --rm --entrypoint sh reportit:test -c 'ls /ms-playwright | grep -q chromium'
 
-      # Image scan. Report only for now (exit-code 0), same as above.
+      - name: Install Trivy (pinned, checksum verified)
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL --retry 3 --retry-all-errors -o trivy.tar.gz \
+            https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz
+          echo "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+          sudo install trivy /usr/local/bin/trivy
+          trivy --version
+
+      # Image scan. Report only for now (--exit-code 0), same as above.
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
-        with:
-          image-ref: reportit:test
-          severity: CRITICAL,HIGH
-          exit-code: "0"
+        run: trivy image --severity CRITICAL,HIGH --exit-code 0 reportit:test
 
   docker:
     name: Build & publish image
