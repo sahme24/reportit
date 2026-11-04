@@ -25,12 +25,14 @@ def _email_with_image(png: bytes) -> bytes:
 
 
 def _phish_png() -> bytes:
-    from PIL import Image, ImageDraw
-    img = Image.new("RGB", (900, 220), "white")
+    from PIL import Image, ImageDraw, ImageFont
+    # Tesseract misreads Pillow's default 10px font, so render at 32px.
+    font = ImageFont.load_default(size=32)
+    img = Image.new("RGB", (1100, 260), "white")
     draw = ImageDraw.Draw(img)
-    draw.text((20, 40), "Your password expires today.", fill="black")
-    draw.text((20, 90), "Verify your account now:", fill="black")
-    draw.text((20, 140), "https://0ffice365-secure.com/reset", fill="black")
+    draw.text((20, 20), "Your password expires today.", fill="black", font=font)
+    draw.text((20, 90), "Verify your account now:", fill="black", font=font)
+    draw.text((20, 160), "https://0ffice365-secure.com/reset", fill="black", font=font)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -57,5 +59,6 @@ def test_hidden_link_in_image_is_detected():
     assert any("Link hidden inside an image" in f.title
                for f in image_findings)
     # The OCR'd typosquat joins the URL pipeline and gets flagged there too.
-    assert any("0ffice365-secure" in u.url for u in case.urls)
+        # OCR may read the zero in "0ffice365" as the letter O, so match the tail.
+    assert any("ffice365-secure" in u.url for u in case.urls)
     assert case.verdict in ("MALICIOUS", "SUSPICIOUS")
