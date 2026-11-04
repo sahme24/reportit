@@ -34,7 +34,7 @@ jobs:
         run: ruff check .
 
       - name: Tests (pytest)
-        run: pytest -q
+        run: python -m pytest -q
 
   security:
     name: Security scans
