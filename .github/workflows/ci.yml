@@ -5,6 +5,10 @@ on:
     branches: [master, main]
   pull_request:
 
+# Least privilege by default. Jobs that need more declare it themselves.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Lint & test
@@ -29,9 +33,75 @@ jobs:
       - name: Tests (pytest)
         run: pytest -q
 
+  security:
+    name: Security scans
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # gitleaks scans the full git history
+
+      # Secret scanning: fails the job if a secret is found in the code or history.
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      # SAST: --error makes the job fail on any finding.
+      - name: Semgrep
+        run: |
+          pip install semgrep
+          semgrep scan --config p/python --config p/owasp-top-ten --config p/secrets --error .
+
+      # Dependency and config scan of the repo. Report only for now (exit-code 0).
+      # After you triage the baseline, change exit-code to '1' to make it block.
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+  docker-build:
+    name: Build image (no push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Build image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          push: false
+          load: true
+          tags: reportit:test
+
+      - name: Verify the container runs as non-root
+        run: test "$(docker run --rm --entrypoint id reportit:test -u)" = "10001"
+
+      - name: Verify Chromium is readable by the app user
+        run: docker run --rm --entrypoint sh reportit:test -c 'ls /ms-playwright | grep -q chromium'
+
+      # Image scan. Report only for now (exit-code 0), same as above.
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: reportit:test
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
   docker:
     name: Build & publish image
-    needs: test
+    # Publish only after tests, scans and the build check all pass.
+    needs: [test, security, docker-build]
     # CD: only on pushes to the default branch, never on PRs.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
