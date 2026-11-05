@@ -57,15 +57,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      # SAST: --error makes the job fail on any finding.
+      # SAST: --error makes the job fail on any finding. Version pinned so CI
+      # results don't change under you.
       - name: Semgrep
         run: |
-          pip install semgrep
+          pip install semgrep==1.183.0
           semgrep scan --config p/python --config p/owasp-top-ten --config p/secrets --error .
 
+      # Known-vulnerable Python dependencies. Report only for now: the job stays
+      # green but the findings show in the log. Remove continue-on-error to block.
+      - name: pip-audit (dependencies)
+        continue-on-error: true
+        run: |
+          pip install pip-audit==2.10.1
+          pip-audit -r requirements.txt
+
       # Trivy is installed straight from GitHub Releases at a pinned, known-safe
-      # version (v0.69.3) and verified against the official SHA256, so there is no
-      # third-party action in the path.
+      # version (v0.69.3) and verified against the official SHA256.
       - name: Install Trivy (pinned, checksum verified)
         run: |
           cd "$RUNNER_TEMP"
@@ -76,10 +84,14 @@ jobs:
           sudo install trivy /usr/local/bin/trivy
           trivy --version
 
-      # Dependency and config scan of the repo. Report only for now (--exit-code 0).
+      # Dependency scan. Report only for now (--exit-code 0).
       # After you triage the baseline, change --exit-code to 1 to make it block.
       - name: Trivy filesystem scan
         run: trivy fs --severity CRITICAL,HIGH --exit-code 0 .
+
+      # Misconfiguration scan (Dockerfile and any IaC/Kubernetes manifests).
+      - name: Trivy config scan (Dockerfile, IaC)
+        run: trivy config --severity CRITICAL,HIGH --exit-code 0 .
 
   docker-build:
     name: Build image (no push)
@@ -125,6 +137,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write # keyless cosign signing (OIDC)
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -139,6 +152,7 @@ jobs:
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
@@ -146,3 +160,39 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Sign the exact pushed digest (not a mutable tag), keyless via GitHub OIDC.
+      - name: Sign the image (cosign, keyless)
+        run: cosign sign --yes "${IMAGE}@${{ steps.build.outputs.digest }}"
+
+      - name: Install Trivy (pinned, checksum verified)
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -sSfL --retry 3 --retry-all-errors -o trivy.tar.gz \
+            https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz
+          echo "1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+          sudo install trivy /usr/local/bin/trivy
+
+      # SBOM (software bill of materials) in CycloneDX format.
+      - name: Generate SBOM
+        run: trivy image --format cyclonedx --output sbom.cdx.json "${IMAGE}@${{ steps.build.outputs.digest }}"
+
+      - name: Attach SBOM to the image as a signed attestation
+        run: cosign attest --yes --type cyclonedx --predicate sbom.cdx.json "${IMAGE}@${{ steps.build.outputs.digest }}"
+
+      # Prove the signature verifies and was made by this repo's workflow.
+      - name: Verify the signature
+        run: |
+          cosign verify "${IMAGE}@${{ steps.build.outputs.digest }}" \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/\.github/workflows/ci\.yml@.*" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
